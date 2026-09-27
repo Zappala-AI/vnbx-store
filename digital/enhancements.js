@@ -178,6 +178,7 @@
     const paymentSelect = document.querySelector('select[name="payment"]');
     const paymentMethods = (content.paymentMethods || []).filter(item => item.active !== false && item.name);
     if (paymentSelect && paymentMethods.length) paymentSelect.innerHTML = paymentMethods.map(item => `<option value="${esc(item.name)}">${esc(item.name)}${item.details ? ' — '+esc(item.details) : ''}</option>`).join('');
+    if (paymentSelect && paymentMethods.length && !document.getElementById('vnbxPaymentDetails')) { const details=document.createElement('small'); details.id='vnbxPaymentDetails'; details.className='hint'; paymentSelect.after(details); const update=()=>{const selected=paymentMethods.find(item=>item.name===paymentSelect.value);details.textContent=selected?.details||''}; paymentSelect.addEventListener('change',update); update(); }
     const configuredColors = [content.backgroundColor1, content.backgroundColor2, content.backgroundColor3].filter(Boolean);
     const legacyLight = configuredColors.join('|') === '#f7f8fb|#ffffff|#e8b86a';
     const colors = legacyLight || !configuredColors.length ? ['#09152f','#172554','#35145f'] : configuredColors;

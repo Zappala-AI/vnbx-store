@@ -238,9 +238,9 @@ const send = async index => { const channel = channels()[index]; if(!channel) re
     if (footer) {
       const links = [['instagram','Instagram'],['facebook','Facebook'],['tiktok','TikTok']].filter(([key]) => identity[key]);
       if (links.length && !footer.querySelector('[data-vnbx-social]')) {
-        const social = document.createElement('span'); social.dataset.vnbxSocial = '1'; social.textContent = ' · ';
-        links.forEach(([key,label], index) => { const link = document.createElement('a'); link.href = identity[key]; link.target = '_blank'; link.rel = 'noopener'; link.textContent = label; if (index) social.append(' · '); social.append(link); });
-        footer.append(' · ', social);
+        const social = document.createElement('span'); social.dataset.vnbxSocial = '1'; social.style.cssText = 'display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:12px';
+        links.forEach(([key,label]) => { const link = document.createElement('a'); link.href = /^(https?:\/\/)/i.test(identity[key]) ? identity[key] : 'https://'+identity[key]; link.target = '_blank'; link.rel = 'noopener'; link.textContent = '↗ '+label; link.style.cssText = 'display:inline-flex;align-items:center;padding:8px 12px;border:1px solid currentColor;border-radius:999px;text-decoration:none;font-weight:700'; social.append(link); });
+        footer.append(social);
       }
     }
     const settings = Array.isArray(content.categorySettings) ? content.categorySettings : [];

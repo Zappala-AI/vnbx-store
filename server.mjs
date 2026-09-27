@@ -81,6 +81,8 @@ const server=http.createServer((req,res)=>{
           const checkoutHtml=fixedHtml.replace("'+v.zone+'","'+v.zone+'\\\\nDirección: '+(v.address||'No informada')+'\\\\nReferencia: '+(v.reference||'Sin referencia')").replace("'+v.delivery+'\\\\n\\\\nProductos:","'+v.delivery+'\\\\nPago: '+(v.payment||'A confirmar')+'\\\\n\\\\nProductos:");
           res.end(checkoutHtml);
         });
+      }else if(path.basename(file)==='gestion.html'){
+        fs.readFile(file,'utf8',(readError,html)=>{if(readError){res.end();return}res.end(html.replace('</body>','<script src="/enhancements.js"></script></body>'))});
       }else fs.createReadStream(file).pipe(res);
     });
   }catch(error){res.writeHead(400);res.end('Bad request')}

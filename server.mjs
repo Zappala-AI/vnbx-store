@@ -71,7 +71,9 @@ const server=http.createServer((req,res)=>{
     fs.stat(file,(error,stats)=>{
       if(error||!stats.isFile()){res.writeHead(404);res.end('Not found');return}
       res.writeHead(200,{'Content-Type':types[path.extname(file).toLowerCase()]||'application/octet-stream','Cache-Control':'no-cache'});
-      if(path.basename(file)==='tienda.html'){
+      if(path.basename(file)==='admin.html'){
+        fs.readFile(file,'utf8',(readError,html)=>{if(readError){res.end();return}res.end(html.replaceAll('showApp();await syncFromServer()','showApp();await syncFromServer();const next=new URLSearchParams(location.search).get(\'next\');if(next)location.href=next'))});
+      }else if(path.basename(file)==='tienda.html'){
         fs.readFile(file,'utf8',(readError,html)=>{
           if(readError){res.end();return}
           const fixedHtml=html.replace('<div class="brand">','<div id="brand" class="brand">').replace('rgba(255,255,255,.72)','rgba(255,255,255,.24)').replace('.hero{padding:65px 16px 50px;background:#fff;','.hero{padding:65px 16px 50px;background:rgba(255,255,255,.42);').replace('<footer class="footer">','<footer class="footer">VNBX_STORE · <a href="/admin.html" style="color:inherit">⚙️ Administración</a> · <a href="/gestion.html" style="color:inherit">Gestión del emprendimiento</a> · ');

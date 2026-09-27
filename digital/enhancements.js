@@ -231,12 +231,13 @@
         priceNode.innerHTML = pricing.discount > 0 ? `<span class="vnbx-old-price">${formatter(pricing.original)}</span>${formatter(pricing.price)}` : formatter(pricing.price);
       });
       document.querySelectorAll('#products article p').forEach(description => { if(description.textContent.trim().length<140 || description.nextElementSibling?.classList.contains('vnbx-description-toggle')) return; description.classList.add('vnbx-description'); const toggle=document.createElement('button'); toggle.type='button'; toggle.className='vnbx-description-toggle'; toggle.textContent='Ver más'; toggle.onclick=()=>{const open=description.classList.toggle('vnbx-description-open');toggle.textContent=open?'Ver menos':'Ver más'}; description.after(toggle); });
+      document.querySelectorAll('#products article').forEach(card => { const name=card.querySelector('h3')?.textContent?.trim(), product=(store.products||[]).find(item=>item.name===name); if(product?.variants && !card.querySelector('.vnbx-variants')) { const variants=document.createElement('small'); variants.className='vnbx-variants'; variants.textContent='Variantes: '+product.variants; card.querySelector('p')?.after(variants); } });
     }, 700);
     setTimeout(() => {
       const hero = document.querySelector('.hero');
       if (!hero) return;
       document.querySelectorAll('[data-vnbx-managed-banner], #vnbxManagedBanner').forEach(node => node.remove());
-      const banners = (content.banners || []).filter(item => item.active !== false && (!item.position || item.position === 'home')).sort((a,b) => (Number(a.order)||0)-(Number(b.order)||0));
+      const banners = (content.banners || []).filter(item => item.active !== false).sort((a,b) => (Number(a.order)||0)-(Number(b.order)||0));
       banners.forEach((banner, index) => {
         const node = document.createElement('section'); node.dataset.vnbxManagedBanner = '1'; node.className = 'vnbx-managed-banner'; node.id = index === 0 ? 'vnbxManagedBanner' : `vnbxManagedBanner${index}`;
         if (banner.animation && banner.animation !== 'none') { node.classList.add('vnbx-animated', `vnbx-${banner.animation}`); node.style.setProperty('--vnbx-duration', `${Number(banner.duration)||6}s`); }

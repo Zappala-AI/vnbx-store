@@ -37,6 +37,22 @@ async function writeStore(value){
   }else if(supabaseUrl&&!supabaseWriteKey)throw new Error('Falta SUPABASE_SERVICE_ROLE_KEY');
   await writeJson(storeFile,value);
 }
+async function readAuthRecord(){
+  if(supabaseUrl&&supabaseReadKey){
+    const r=await fetch(supabaseUrl+'/rest/v1/store_state?id=eq.admin&select=data',{headers:{apikey:supabaseReadKey,Authorization:'Bearer '+supabaseReadKey}});
+    if(!r.ok)throw new Error('Supabase auth GET '+r.status);
+    const rows=await r.json();
+    if(rows[0]?.data)return rows[0].data;
+  }
+  return readJson(authFile,null);
+}
+async function writeAuthRecord(record){
+  if(supabaseUrl&&supabaseWriteKey){
+    const r=await fetch(supabaseUrl+'/rest/v1/store_state?on_conflict=id',{method:'POST',headers:{apikey:supabaseWriteKey,Authorization:'Bearer '+supabaseWriteKey,'Content-Type':'application/json',Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify({id:'admin',data:record,updated_at:new Date().toISOString()})});
+    if(!r.ok)throw new Error('Supabase auth PUT '+r.status);
+  }else if(supabaseUrl&&!supabaseWriteKey)throw new Error('Falta SUPABASE_SERVICE_ROLE_KEY');
+  await writeJson(authFile,record);
+}
 function publicStore(value){
   const privateFields=new Set(['cost','supplier','provider','origin','purchasePrice']);
   const publicValue=Object.fromEntries(Object.entries(value).filter(([key])=>!new Set(['management','orders','clients','money','providers']).has(key)));
@@ -74,10 +90,10 @@ function localAddresses(){
 const server=http.createServer((req,res)=>{
   try{
     const requestPath=decodeURIComponent(new URL(req.url||'/',`http://${req.headers.host||'localhost'}`).pathname);
-    if(requestPath==='/api/auth/status'&&req.method==='GET'){readJson(authFile,null).then(record=>json(res,200,{configured:!!record,environmentConfigured:!!process.env.ADMIN_PASSWORD}));return}
+    if(requestPath==='/api/auth/status'&&req.method==='GET'){readAuthRecord().then(record=>json(res,200,{configured:!!record,environmentConfigured:!!process.env.ADMIN_PASSWORD})).catch(()=>json(res,200,{configured:false,environmentConfigured:!!process.env.ADMIN_PASSWORD}));return}
     if(requestPath==='/api/auth/check'&&req.method==='GET'){json(res,200,{authenticated:!!authenticated(req)});return}
-    if(requestPath==='/api/auth/setup'&&req.method==='POST'){body(req).then(async input=>{const existing=await readJson(authFile,null);if(existing)return json(res,409,{error:'El acceso ya está configurado'});if(!input.password||String(input.password).length<4)return json(res,400,{error:'La contraseña debe tener al menos 4 caracteres'});await writeJson(authFile,hashPassword(String(input.password)));const token=crypto.randomBytes(32).toString('hex');sessions.set(token,Date.now());json(res,200,{ok:true,token},{'Set-Cookie':`vnbx_session=${token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=604800`})}).catch(()=>json(res,400,{error:'Solicitud inválida'}));return}
-    if(requestPath==='/api/auth/login'&&req.method==='POST'){body(req).then(async input=>{const record=await readJson(authFile,null),password=String(input.password||''),environmentPassword=String(process.env.ADMIN_PASSWORD||'');const valid=record&&validPassword(password,record),validEnvironment=environmentPassword&&password===environmentPassword;if(!password||(!valid&&!validEnvironment))return json(res,401,{error:'Contraseña incorrecta'});if(validEnvironment&&!valid)await writeJson(authFile,hashPassword(password));const token=crypto.randomBytes(32).toString('hex');sessions.set(token,Date.now());json(res,200,{ok:true,token},{'Set-Cookie':`vnbx_session=${token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=604800`})}).catch(()=>json(res,400,{error:'Solicitud inválida'}));return}
+    if(requestPath==='/api/auth/setup'&&req.method==='POST'){body(req).then(async input=>{const existing=await readAuthRecord();if(existing)return json(res,409,{error:'El acceso ya está configurado'});if(!input.password||String(input.password).length<4)return json(res,400,{error:'La contraseña debe tener al menos 4 caracteres'});await writeAuthRecord(hashPassword(String(input.password)));const token=crypto.randomBytes(32).toString('hex');sessions.set(token,Date.now());json(res,200,{ok:true,token},{'Set-Cookie':'vnbx_session='+token+'; HttpOnly; SameSite=Lax; Path=/; Max-Age=604800'})}).catch(()=>json(res,400,{error:'Solicitud inválida'}));return}
+    if(requestPath==='/api/auth/login'&&req.method==='POST'){body(req).then(async input=>{const record=await readAuthRecord(),password=String(input.password||''),environmentPassword=String(process.env.ADMIN_PASSWORD||'');const valid=record&&validPassword(password,record),validEnvironment=environmentPassword&&password===environmentPassword;if(!password||(!valid&&!validEnvironment))return json(res,401,{error:'Contraseña incorrecta'});if(validEnvironment&&!valid)await writeAuthRecord(hashPassword(password));const token=crypto.randomBytes(32).toString('hex');sessions.set(token,Date.now());json(res,200,{ok:true,token},{'Set-Cookie':'vnbx_session='+token+'; HttpOnly; SameSite=Lax; Path=/; Max-Age=604800'})}).catch(()=>json(res,400,{error:'Solicitud inválida'}));return}
     if(requestPath==='/api/auth/logout'&&req.method==='POST'){const token=cookies(req).vnbx_session;sessions.delete(token);json(res,200,{ok:true},{'Set-Cookie':'vnbx_session=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0'});return}
     if(requestPath==='/api/store'&&req.method==='GET'){readStore().then(value=>json(res,200,authenticated(req)?value:publicStore(value))).catch(error=>{console.error('[store] read failed',error);json(res,503,{error:'No se pudo leer la tienda'})});return}
     if(requestPath==='/api/store'&&req.method==='PUT'){if(!authenticated(req)){json(res,401,{error:'No autorizado'});return}body(req).then(async value=>{if(Array.isArray(value.orders)&&value.management&&Array.isArray(value.management.orders)){const managedById=new Map(value.management.orders.filter(order=>order.orderId).map(order=>[String(order.orderId),order]));value.orders=value.orders.map(order=>{const managed=managedById.get(String(order.id));return managed?{...order,status:managed.status||order.status,managementNotes:managed.notes||order.managementNotes||''}:order})}await writeStore(value);json(res,200,{ok:true})}).catch(error=>{console.error('[store] write failed',error);json(res,503,{error:'No se pudo guardar la tienda'})});return}

@@ -188,6 +188,9 @@ const send = async index => { const channel = channels()[index]; if(!channel) re
     if (!response?.ok) return;
     const store = await response.json();
     const content = store.content || {};
+    const syncWhatsappLink = (id, key, fallback) => { const link = document.getElementById(id); if (!link) return; const number = String(content[key] || '').replace(/\D/g, ''); const name = content[key+'Name'] || fallback; link.textContent = '💬 ' + name; link.href = number.length >= 8 ? 'https://wa.me/' + number + '?text=' + encodeURIComponent('Hola VNBX_STORE, quiero hacer una consulta.') : '#'; link.onclick = number.length >= 8 ? null : () => { alert('Este WhatsApp no está configurado.'); return false; }; };
+    syncWhatsappLink('contactWhatsapp1', 'whatsapp1', 'WhatsApp 1');
+    syncWhatsappLink('contactWhatsapp2', 'whatsapp2', 'WhatsApp 2');
     const paymentSelect = document.querySelector('select[name="payment"]');
     const paymentMethods = (content.paymentMethods || []).filter(item => item.active !== false && item.name);
     if (paymentSelect && paymentMethods.length) paymentSelect.innerHTML = paymentMethods.map(item => `<option value="${esc(item.name)}">${esc(item.name)}${item.details ? ' — '+esc(item.details) : ''}</option>`).join('');

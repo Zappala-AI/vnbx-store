@@ -39,7 +39,8 @@ async function writeStore(value){
 }
 function publicStore(value){
   const privateFields=new Set(['cost','supplier','provider','origin','purchasePrice']);
-  return {...value,products:(value.products||[]).map(product=>Object.fromEntries(Object.entries(product).filter(([key])=>!privateFields.has(key))))};
+  const publicValue=Object.fromEntries(Object.entries(value).filter(([key])=>!new Set(['management','orders','clients','money','providers']).has(key)));
+  return {...publicValue,products:(value.products||[]).map(product=>Object.fromEntries(Object.entries(product).filter(([key])=>!privateFields.has(key))))};
 }
 function hashPassword(password, salt=crypto.randomBytes(16).toString('hex')){return {salt,hash:crypto.scryptSync(password,salt,64).toString('hex')}}
 function validPassword(password, record){return crypto.timingSafeEqual(Buffer.from(hashPassword(password,record.salt).hash,'hex'),Buffer.from(record.hash,'hex'))}
@@ -64,6 +65,7 @@ const server=http.createServer((req,res)=>{
     if(requestPath==='/api/auth/logout'&&req.method==='POST'){const token=cookies(req).vnbx_session;sessions.delete(token);json(res,200,{ok:true},{'Set-Cookie':'vnbx_session=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0'});return}
     if(requestPath==='/api/store'&&req.method==='GET'){readStore().then(value=>json(res,200,authenticated(req)?value:publicStore(value))).catch(error=>{console.error('[store] read failed',error);json(res,503,{error:'No se pudo leer la tienda'})});return}
     if(requestPath==='/api/store'&&req.method==='PUT'){if(!authenticated(req)){json(res,401,{error:'No autorizado'});return}body(req).then(async value=>{await writeStore(value);json(res,200,{ok:true})}).catch(error=>{console.error('[store] write failed',error);json(res,503,{error:'No se pudo guardar la tienda'})});return}
+    if(requestPath==='/gestion.html'&&!authenticated(req)){res.writeHead(302,{Location:'/admin.html?next=%2Fgestion.html'});res.end();return}
     const relative=requestPath==='/'?'tienda.html':requestPath.replace(/^\/+/,''), file=path.resolve(publicDir,relative);
     if(!file.startsWith(path.resolve(publicDir)+path.sep)){res.writeHead(403);res.end('Forbidden');return}
     fs.stat(file,(error,stats)=>{
@@ -72,7 +74,7 @@ const server=http.createServer((req,res)=>{
       if(path.basename(file)==='tienda.html'){
         fs.readFile(file,'utf8',(readError,html)=>{
           if(readError){res.end();return}
-          const fixedHtml=html.replace('<div class="brand">','<div id="brand" class="brand">').replace('rgba(255,255,255,.72)','rgba(255,255,255,.24)').replace('.hero{padding:65px 16px 50px;background:#fff;','.hero{padding:65px 16px 50px;background:rgba(255,255,255,.42);');
+          const fixedHtml=html.replace('<div class="brand">','<div id="brand" class="brand">').replace('rgba(255,255,255,.72)','rgba(255,255,255,.24)').replace('.hero{padding:65px 16px 50px;background:#fff;','.hero{padding:65px 16px 50px;background:rgba(255,255,255,.42);').replace('<footer class="footer">','<footer class="footer">VNBX_STORE · <a href="/admin.html" style="color:inherit">⚙️ Administración</a> · <a href="/gestion.html" style="color:inherit">Gestión del emprendimiento</a> · ');
           res.end(fixedHtml);
         });
       }else fs.createReadStream(file).pipe(res);

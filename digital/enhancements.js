@@ -74,6 +74,20 @@
     const initial = await load(); if (initial) render(initial);
   }
 
+  async function enhanceBannerEditor() {
+    const form = document.getElementById('vnbxBannerForm'), list = document.getElementById('vnbxBannerList');
+    if (!form || !list || form.dataset.vnbxEnhanced) return;
+    form.dataset.vnbxEnhanced = '1';
+    const add = (label, name, type = 'text') => { if (form.elements[name]) return; const wrapper = document.createElement('label'); wrapper.textContent = label; const input = document.createElement('input'); input.name = name; input.type = type; if (type === 'number') { input.min = '0'; input.value = '0'; } wrapper.appendChild(input); form.querySelector('.wide.form-footer').before(wrapper); };
+    add('Posición', 'position'); add('Categoría asociada', 'category'); add('Orden', 'order', 'number');
+    const authHeaders = () => { const token = sessionStorage.getItem('vnbx_store_admin_token'); return token ? {Authorization:'Bearer '+token} : {}; };
+    const load = async () => { const response = await fetch('/api/store',{headers:authHeaders()}); return response.ok ? response.json() : null; };
+    let editing = null;
+    const render = store => { const banners = store?.content?.banners || []; list.innerHTML = banners.length ? banners.map((banner,index) => `<div class="vnbx-banner-row"><span><b>${esc(banner.title)}</b><small>${banner.active===false?'Inactivo':'Activo'} · ${esc(banner.position||'home')} · Orden ${Number(banner.order)||0}</small></span><span><button type="button" class="btn alt small" data-edit-banner="${index}">Editar</button> <button type="button" class="btn danger small" data-delete-banner-v2="${index}">Eliminar</button></span></div>`).join('') : '<div class="empty">Todavía no hay banners.</div>'; list.querySelectorAll('[data-edit-banner]').forEach(button=>button.onclick=async()=>{const current=await load(), banner=current?.content?.banners?.[Number(button.dataset.editBanner)];if(!banner)return;editing=Number(button.dataset.editBanner);Object.entries(banner).forEach(([key,value])=>{if(form.elements[key]&&form.elements[key].type!=='file')form.elements[key].value=value??''});if(form.elements.active)form.elements.active.checked=banner.active!==false});list.querySelectorAll('[data-delete-banner-v2]').forEach(button=>button.onclick=async()=>{if(!confirm('¿Eliminar este banner?'))return;const current=await load();if(!current)return;current.content=current.content||{};current.content.banners=(current.content.banners||[]).filter((_,index)=>index!==Number(button.dataset.deleteBannerV2));await fetch('/api/store',{method:'PUT',headers:{'Content-Type':'application/json',...authHeaders()},body:JSON.stringify(current)});editing=null;render(current)}); };
+    form.addEventListener('submit', async event => { event.preventDefault(); event.stopImmediatePropagation(); const store=await load(); if(!store)return alert('No se pudo leer la configuración.'); const values=Object.fromEntries(new FormData(form)); const file=form.elements.imageFile?.files?.[0]; if(file)values.image=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=reject;reader.readAsDataURL(file)}); delete values.imageFile; values.active=form.elements.active.checked; values.duration=Number(values.duration)||6; values.order=Number(values.order)||0; store.content=store.content||{}; const banners=store.content.banners||[]; if(editing===null)banners.push(values);else banners[editing]=values;store.content.banners=banners;const response=await fetch('/api/store',{method:'PUT',headers:{'Content-Type':'application/json',...authHeaders()},body:JSON.stringify(store)});if(!response.ok)return alert('No se pudo guardar el banner.');editing=null;form.reset();form.elements.active.checked=true;render(store);alert('Banner guardado en la tienda.'); }, true);
+    const initial=await load(); if(initial)render(initial);
+  }
+
   async function installCommercialAdmin() {
     if (!document.getElementById('productForm') || document.querySelector('[data-view="commercial"]')) return;
     const nav = document.querySelector('.nav'); const main = document.querySelector('main.layout'); if (!nav || !main) return;
@@ -180,7 +194,20 @@
       [...categoryBar.querySelectorAll('[data-vnbx-filter]')].forEach(button => { if (button.dataset.vnbxFilter !== 'Todas' && settings.length && !activeNames.has(button.dataset.vnbxFilter)) button.remove(); });
       [...categoryBar.querySelectorAll('[data-vnbx-filter]')].sort((a,b) => orderOf(a.dataset.vnbxFilter)-orderOf(b.dataset.vnbxFilter)).forEach(button => categoryBar.append(button));
     }
+    setTimeout(() => {
+      const hero = document.querySelector('.hero');
+      if (!hero) return;
+      document.querySelectorAll('[data-vnbx-managed-banner], #vnbxManagedBanner').forEach(node => node.remove());
+      const banners = (content.banners || []).filter(item => item.active !== false && (!item.position || item.position === 'home')).sort((a,b) => (Number(a.order)||0)-(Number(b.order)||0));
+      banners.forEach((banner, index) => {
+        const node = document.createElement('section'); node.dataset.vnbxManagedBanner = '1'; node.className = 'vnbx-managed-banner'; node.id = index === 0 ? 'vnbxManagedBanner' : `vnbxManagedBanner${index}`;
+        if (banner.animation && banner.animation !== 'none') { node.classList.add('vnbx-animated', `vnbx-${banner.animation}`); node.style.setProperty('--vnbx-duration', `${Number(banner.duration)||6}s`); }
+        const text = document.createElement('div'), title = document.createElement('h2'), description = document.createElement('p'), link = document.createElement('a'); title.textContent = banner.title || ''; description.textContent = banner.description || ''; link.textContent = banner.button || 'Ver más'; link.href = /^(https?:|#|\/)/.test(banner.link || '') ? banner.link : '#catalogo'; text.append(title, description, link); node.append(text);
+        if (banner.image) { const image = document.createElement('img'); image.src = banner.image; image.alt = banner.title || ''; node.append(image); }
+        hero.after(node);
+      });
+    }, 500);
   }
   installManagedCheckout = installManagedCheckoutV2;
-  installStyles(); setTimeout(() => { installAdmin().catch(() => {}); installCommercialAdmin().catch(() => {}); installCategorySettings().catch(() => {}); installIdentityAdmin().catch(() => {}); installGestion(); installStore().catch(() => {}); installPublicConfiguration().catch(() => {}); }, 0);
+  installStyles(); setTimeout(() => { installAdmin().catch(() => {}); setTimeout(() => enhanceBannerEditor().catch(() => {}), 700); installCommercialAdmin().catch(() => {}); installCategorySettings().catch(() => {}); installIdentityAdmin().catch(() => {}); installGestion(); installStore().catch(() => {}); installPublicConfiguration().catch(() => {}); }, 0);
 })();

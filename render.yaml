@@ -1,10 +1,7 @@
 services:
   - type: web
     name: zavian
-    runtime: static
+    runtime: node
     buildCommand: ""
-    staticPublishPath: ./digital
-    routes:
-      - type: rewrite
-        source: /*
-        destination: /index.html
+    startCommand: node server.mjs
+    healthCheckPath: /api/auth/status

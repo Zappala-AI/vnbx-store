@@ -141,7 +141,8 @@
   function installManagedCheckoutV2(store) {
     if (window.__vnbxManagedCheckout || !document.getElementById('orderForm')) return;
     window.__vnbxManagedCheckout = true;
-    const cart = [], form = document.getElementById('orderForm'), modal = document.getElementById('orderModal'), lines = document.getElementById('cartLines'), totalNode = document.getElementById('cartTotal'), countNode = document.getElementById('cartCount'), choices = document.getElementById('waChoices');
+    const cart = []; window.vnbxCartState = () => cart; window.vnbxStoreState = () => store;
+    const form = document.getElementById('orderForm'), modal = document.getElementById('orderModal'), lines = document.getElementById('cartLines'), totalNode = document.getElementById('cartTotal'), countNode = document.getElementById('cartCount'), choices = document.getElementById('waChoices');
     const fmt = value => value === '' || value == null ? 'Consultar' : '$ ' + Number(value).toLocaleString('es-AR');
     const channels = () => [{number:store.content?.whatsapp1,name:store.content?.whatsapp1Name||'WhatsApp 1',text:store.content?.whatsapp1Text||'',active:store.content?.whatsapp1Active!==false},{number:store.content?.whatsapp2,name:store.content?.whatsapp2Name||'WhatsApp 2',text:store.content?.whatsapp2Text||'',active:store.content?.whatsapp2Active!==false}].filter(item => item.active && String(item.number||'').replace(/\D/g,'').length >= 8);
     const refresh = () => { countNode.textContent = cart.reduce((sum,item) => sum + item.qty, 0); lines.innerHTML = cart.length ? cart.map((item,index) => `<div class="cart-line"><span>${esc(item.name)} × ${item.qty} · ${fmt(item.price)}</span><span><button type="button" data-vnbx-minus="${index}">−</button> <button type="button" data-vnbx-plus="${index}">+</button> <button type="button" data-vnbx-remove="${index}">🗑️</button></span></div>`).join('') : '<p class="empty">El carrito está vacío.</p>'; const subtotal = cart.reduce((sum,item) => sum + (Number(item.price)||0)*item.qty, 0), discount = cart.reduce((sum,item) => sum + (Number(item.discount)||0)*item.qty, 0); totalNode.textContent = cart.length ? 'Subtotal: '+fmt(subtotal) : ''; const summary = document.getElementById('vnbxCheckoutSummary'); if(summary) summary.innerHTML = '<b>Resumen del pedido</b><br>Subtotal: '+fmt(subtotal)+'<br>Descuento: '+fmt(discount)+'<br>Envío: Se confirma según zona<br><strong>Total estimado: Se confirma al elegir la zona</strong>'; };
@@ -171,6 +172,9 @@
     if (!response?.ok) return;
     const store = await response.json();
     const content = store.content || {};
+    const paymentSelect = document.querySelector('select[name="payment"]');
+    const paymentMethods = (content.paymentMethods || []).filter(item => item.active !== false && item.name);
+    if (paymentSelect && paymentMethods.length) paymentSelect.innerHTML = paymentMethods.map(item => `<option value="${esc(item.name)}">${esc(item.name)}${item.details ? ' — '+esc(item.details) : ''}</option>`).join('');
     const configuredColors = [content.backgroundColor1, content.backgroundColor2, content.backgroundColor3].filter(Boolean);
     const legacyLight = configuredColors.join('|') === '#f7f8fb|#ffffff|#e8b86a';
     const colors = legacyLight || !configuredColors.length ? ['#09152f','#172554','#35145f'] : configuredColors;

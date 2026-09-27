@@ -29,7 +29,7 @@
       @media(max-width:600px){.vnbx-managed-banner{display:block;margin:14px 16px}.vnbx-managed-banner a{margin-top:15px}.vnbx-banner-row{align-items:flex-start;flex-direction:column}}
       @media(prefers-reduced-motion:reduce){.vnbx-animated{animation:none!important;transition:none!important}.vnbx-managed-banner{scroll-behavior:auto}}
     `;
-    style.textContent += '.vnbx-stats{margin-top:16px}.vnbx-stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.vnbx-stat{border:1px solid var(--line,#e6e9ef);border-radius:12px;padding:14px;background:#fff}.vnbx-stat strong{display:block;font-size:23px;margin-top:5px}.vnbx-bars{display:grid;gap:8px;margin-top:12px}.vnbx-bar-row{display:grid;grid-template-columns:110px 1fr 90px;align-items:center;gap:8px;font-size:12px}.vnbx-bar-track{height:10px;border-radius:99px;background:#edf0f5;overflow:hidden}.vnbx-bar-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,#172b4d,#6652c8)}@media(max-width:700px){.vnbx-stat-grid{grid-template-columns:repeat(2,1fr)}.vnbx-bar-row{grid-template-columns:80px 1fr 70px}}';
+    style.textContent += '.vnbx-stats{margin-top:16px}.vnbx-stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.vnbx-stat{border:1px solid var(--line,#e6e9ef);border-radius:12px;padding:14px;background:#fff}.vnbx-stat strong{display:block;font-size:23px;margin-top:5px}.vnbx-bars{display:grid;gap:8px;margin-top:12px}.vnbx-bar-row{display:grid;grid-template-columns:110px 1fr 90px;align-items:center;gap:8px;font-size:12px}.vnbx-bar-track{height:10px;border-radius:99px;background:#edf0f5;overflow:hidden}.vnbx-bar-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,#172b4d,#6652c8)}.vnbx-special{max-width:1160px;margin:18px auto;padding:18px 16px;border-radius:18px;background:#ffffffb8;box-shadow:0 10px 30px #172b4d12}.vnbx-special h2{margin:0 0 12px}.vnbx-special-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}.vnbx-special-card{background:#fff;border:1px solid var(--line,#e6e9ef);border-radius:14px;padding:10px}.vnbx-special-card img{width:100%;height:120px;object-fit:cover;border-radius:10px}.vnbx-special-card button{width:100%;margin-top:8px}@media(max-width:700px){.vnbx-stat-grid{grid-template-columns:repeat(2,1fr)}.vnbx-bar-row{grid-template-columns:80px 1fr 70px}}';
     document.head.appendChild(style);
   }
 
@@ -163,7 +163,9 @@
     if (!response?.ok) return;
     const store = await response.json();
     const content = store.content || {};
-    const colors = [content.backgroundColor1, content.backgroundColor2, content.backgroundColor3].filter(Boolean);
+    const configuredColors = [content.backgroundColor1, content.backgroundColor2, content.backgroundColor3].filter(Boolean);
+    const legacyLight = configuredColors.join('|') === '#f7f8fb|#ffffff|#e8b86a';
+    const colors = legacyLight || !configuredColors.length ? ['#09152f','#172554','#35145f'] : configuredColors;
     if (colors.length) {
       document.body.style.background = `linear-gradient(135deg, ${colors.join(', ')})`;
       document.body.style.backgroundAttachment = 'fixed';
@@ -194,6 +196,22 @@
       [...categoryBar.querySelectorAll('[data-vnbx-filter]')].forEach(button => { if (button.dataset.vnbxFilter !== 'Todas' && settings.length && !activeNames.has(button.dataset.vnbxFilter)) button.remove(); });
       [...categoryBar.querySelectorAll('[data-vnbx-filter]')].sort((a,b) => orderOf(a.dataset.vnbxFilter)-orderOf(b.dataset.vnbxFilter)).forEach(button => categoryBar.append(button));
     }
+    const catalogHost = document.getElementById('products');
+    if (catalogHost && !document.getElementById('vnbxSpecialShelves')) {
+      const activeProducts = (store.products || []).filter(product => product.status === 'active' || product.status === 'preorder');
+      const groups = [['wow','🔥 Productos WOW',activeProducts.filter(product => product.isWow)],['offers','🔥 Ofertas',activeProducts.filter(product => productPricing(product).discount > 0)]];
+      const shelves = document.createElement('div'); shelves.id = 'vnbxSpecialShelves';
+      groups.filter(([, ,items]) => items.length).forEach(([id,title,items]) => { const section=document.createElement('section'); section.className='vnbx-special'; section.id='vnbxSpecial'+id; const heading=document.createElement('h2'); heading.textContent=title; const grid=document.createElement('div'); grid.className='vnbx-special-grid'; items.forEach(product=>{const pricing=productPricing(product),card=document.createElement('article');card.className='vnbx-special-card';const image=document.createElement('img');image.src=(Array.isArray(product.images)&&product.images[0])||product.image||'';image.alt=product.name;const name=document.createElement('strong');name.textContent=product.name;const price=document.createElement('div');price.innerHTML=pricing.discount>0?`<span class="vnbx-old-price">$ ${Number(pricing.original).toLocaleString('es-AR')}</span> $ ${Number(pricing.price).toLocaleString('es-AR')}`:'$ '+Number(pricing.price||0).toLocaleString('es-AR');const button=document.createElement('button');button.type='button';button.className='wa-btn';button.dataset.vnbxAdd=product.name;button.textContent='🛒 Agregar al pedido';card.append(image,name,price,button);grid.append(card)});section.append(heading,grid);shelves.append(section)}); if(shelves.children.length)catalogHost.before(shelves);
+    }
+    setTimeout(() => {
+      const formatter = value => value === '' || value == null ? 'Consultar' : '$ ' + Number(value).toLocaleString('es-AR');
+      document.querySelectorAll('#products article').forEach(card => {
+        const name = card.querySelector('h3')?.textContent?.trim(), product = (store.products || []).find(item => item.name === name), priceNode = card.querySelector('.product-price');
+        if (!product || !priceNode) return;
+        const pricing = productPricing(product);
+        priceNode.innerHTML = pricing.discount > 0 ? `<span class="vnbx-old-price">${formatter(pricing.original)}</span>${formatter(pricing.price)}` : formatter(pricing.price);
+      });
+    }, 700);
     setTimeout(() => {
       const hero = document.querySelector('.hero');
       if (!hero) return;

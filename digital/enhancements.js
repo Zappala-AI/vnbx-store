@@ -52,6 +52,9 @@
     addField(form, 'Precio promocional', 'promotionalPrice', 'number');
     addField(form, 'Stock mínimo', 'minStock', 'number');
     addField(form, 'Subcategoría', 'subcategory', 'text');
+    addField(form, 'Variantes', 'variants', 'text');
+    addField(form, 'Proveedor', 'supplier', 'text');
+    addField(form, 'Origen', 'origin', 'text');
     addField(form, 'Producto WOW', 'isWow', 'checkbox');
     addField(form, 'Producto en oferta', 'isOffer', 'checkbox');
     addField(form, 'Producto nuevo', 'isNew', 'checkbox');
@@ -191,6 +194,9 @@
     const heroImage = document.getElementById('heroImage');
     if (heroImage && content.heroImage) heroImage.src = content.heroImage;
     const identity = content.identity || content;
+    const contactSection = document.getElementById('contacto');
+    if (content.aboutText && !document.getElementById('vnbxAbout')) { const about=document.createElement('section'); about.id='vnbxAbout'; about.className='section'; about.innerHTML='<h2>Nosotros</h2><p></p>'; about.querySelector('p').textContent=content.aboutText; const main=document.querySelector('main'); if(main)main.insertBefore(about,contactSection||null); }
+    if (contactSection && (identity.email || identity.phone) && !contactSection.querySelector('[data-vnbx-contact-details]')) { const details=document.createElement('p'); details.dataset.vnbxContactDetails='1'; details.textContent=[identity.email,identity.phone].filter(Boolean).join(' · '); contactSection.querySelector('.contact')?.append(details); }
     const footer = document.querySelector('.footer');
     if (footer) {
       const links = [['instagram','Instagram'],['facebook','Facebook'],['tiktok','TikTok']].filter(([key]) => identity[key]);

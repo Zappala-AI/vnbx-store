@@ -111,7 +111,7 @@ if(requestPath==='/api/orders'&&req.method==='POST'){body(req).then(async input=
       if(error||!stats.isFile()){res.writeHead(404);res.end('Not found');return}
       res.writeHead(200,{'Content-Type':types[path.extname(file).toLowerCase()]||'application/octet-stream','Cache-Control':'no-cache'});
       if(path.basename(file)==='admin.html'){
-        fs.readFile(file,'utf8',(readError,html)=>{if(readError){res.end();return}res.end(html.replaceAll('showApp();await syncFromServer()','showApp();await syncFromServer();const next=new URLSearchParams(location.search).get(\'next\');if(next)location.href=next').replace('</body>','<script src="/enhancements.js"></script></body>'))});
+        fs.readFile(file,'utf8',(readError,html)=>{if(readError){res.end();return}const cleanHtml=html.replace(/<a id="floatingWhatsapp"[\s\S]*?<\/a>/,'');res.end(cleanHtml.replaceAll('showApp();await syncFromServer()','showApp();await syncFromServer();const next=new URLSearchParams(location.search).get(\'next\');if(next)location.href=next').replace('</body>','<script src="/enhancements.js"></script></body>'))});
       }else if(path.basename(file)==='tienda.html'){
         fs.readFile(file,'utf8',(readError,html)=>{
           if(readError){res.end();return}

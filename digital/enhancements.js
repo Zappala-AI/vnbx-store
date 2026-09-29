@@ -296,6 +296,14 @@ const send = async index => { const channel = channels()[index]; if(!channel) re
   installManagedCheckout = installManagedCheckoutV2;
   installStyles(); setTimeout(() => { installAdmin().catch(() => {}); setTimeout(() => enhanceBannerEditor().catch(() => {}), 700); installCommercialAdmin().catch(() => {}); installCategorySettings().catch(() => {}); installIdentityAdmin().catch(() => {}); installGestion(); installOrderHistory(); installDashboardTrends(); installStore().catch(() => {}); installPublicConfiguration().catch(() => {}); }, 0);
 })();
+(() => {
+  const auth=()=>{const t=sessionStorage.getItem('vnbx_store_admin_token');return t?{Authorization:'Bearer '+t}:{}},readFile=f=>new Promise((r,j)=>{if(!f||!f.size)return r('');const x=new FileReader();x.onload=()=>r(x.result);x.onerror=j;x.readAsDataURL(f)});
+  document.querySelectorAll('#vnbxIntro,#vnbxIntroFallback').forEach(x=>x.remove());document.body.classList.remove('vnbx-intro-lock');
+  const style=document.createElement('style');style.textContent='#floatingWhatsapp{display:none!important}.vnbx-music-control{position:fixed;right:18px;bottom:18px;z-index:50;border:1px solid #ffffff44;border-radius:999px;background:#172b4dee;color:#fff;padding:12px 16px;font-weight:800;box-shadow:0 10px 25px #0005;cursor:pointer}.vnbx-music-control:hover{background:#32145f}.vnbx-music-link{display:block;position:fixed;right:18px;bottom:18px;z-index:50;border-radius:999px;background:#172b4d;color:#fff;padding:12px 16px;text-decoration:none;font-weight:800;box-shadow:0 10px 25px #0005}';document.head.appendChild(style);
+  async function publicMusic(){if(!document.getElementById('products'))return;const r=await fetch('/api/store?public=1').catch(()=>null);if(!r?.ok)return;const c=(await r.json()).content||{};if(c.musicControlEnabled===false)return;const url=String(c.musicUrl||'').trim(),file=String(c.musicFile||'').trim();if(!url&&!file)return;if(url&&!/^data:audio\//i.test(url)){const link=document.createElement('a');link.className='vnbx-music-link';link.href=url;link.target='_blank';link.rel='noopener';link.textContent='♫ Abrir música';document.body.append(link);return}const audio=new Audio(file||url);audio.loop=true;const button=document.createElement('button');button.type='button';button.className='vnbx-music-control';button.textContent='♫ Música apagada';button.onclick=()=>{if(audio.paused){audio.play().then(()=>button.textContent='♫ Música encendida').catch(()=>alert('Tocá nuevamente para activar la música.'))}else{audio.pause();button.textContent='♫ Música apagada'}};document.body.append(button)}
+  async function adminMusic(){const f=document.getElementById('contentForm');if(!f||f.dataset.vnbxMusic)return;f.dataset.vnbxMusic='1';const holder=document.createElement('div');holder.className='wide';holder.innerHTML='<hr><h3>Música de la tienda</h3><label class="check"><input name="musicControlEnabled" type="checkbox" checked> Mostrar control de música a los clientes</label><label>Enlace de YouTube Music<input name="musicUrl" type="url" placeholder="Pegá aquí el enlace"></label><label>Audio descargado<input name="musicFile" type="file" accept="audio/*"><small class="hint">Para reproducir dentro de la tienda, subí un MP3, WAV u OGG. El enlace de YouTube Music se abre en una pestaña aparte.</small></label>';f.append(holder);const cur=await fetch('/api/store',{headers:auth()}).then(x=>x.ok?x.json():null).catch(()=>null),c=cur?.content||{};f.elements.musicControlEnabled.checked=c.musicControlEnabled!==false;f.elements.musicUrl.value=c.musicUrl||'';f.addEventListener('submit',async e=>{e.preventDefault();e.stopImmediatePropagation();const v=Object.fromEntries(new FormData(f)),content={...c,...v};const audio=await readFile(f.elements.musicFile.files[0]);if(audio)content.musicFile=audio;delete content.musicFile;content.musicControlEnabled=f.elements.musicControlEnabled.checked;content.musicUrl=v.musicUrl||'';if(audio)content.musicFile=audio;for(const x of f.querySelectorAll('input[type=checkbox]'))content[x.name]=x.checked;const save=await fetch('/api/store/content',{method:'PUT',headers:{'Content-Type':'application/json',...auth()},body:JSON.stringify(content)});if(!save.ok)return alert('No se pudo guardar la música.');alert('Configuración de música guardada.');},true)}
+  publicMusic().catch(()=>{});adminMusic().catch(()=>{});
+})();
 (() => {const intro=document.getElementById('vnbxIntroFallback');if(intro&&!intro.querySelector('button')){const b=document.createElement('button');b.className='vnbx-fallback-enter';b.textContent='Entrar a la tienda ↗';b.onclick=()=>{intro.remove();document.body.classList.remove('vnbx-intro-lock')};intro.append(b)}})();
 (() => {const intro=document.getElementById('vnbxIntroFallback');if(!intro)return;fetch('/api/store?public=1').then(r=>r.ok?r.json():null).then(store=>{const c=store?.content||{};if(c.introImage){const image=document.createElement('img');image.src=c.introImage;image.className='vnbx-intro-image';image.alt='Presentación VNBX';intro.querySelector('.head').replaceWith(image)}if(c.introMusic){const audio=document.createElement('audio');audio.src=c.introMusic;audio.loop=true;const button=document.createElement('button');button.className='vnbx-intro-sound';button.textContent='♫ Música: apagada';button.onclick=()=>{if(audio.paused){audio.play().then(()=>button.textContent='♫ Música: encendida').catch(()=>{})}else{audio.pause();button.textContent='♫ Música: apagada'}};intro.append(audio,button);intro.querySelector('.vnbx-intro-fallback button')?.remove()}}).catch(()=>{})})();
 (() => {
@@ -325,4 +333,64 @@ const send = async index => { const channel = channels()[index]; if(!channel) re
     form.addEventListener('submit',async event=>{event.preventDefault();event.stopImmediatePropagation();const values=Object.fromEntries(new FormData(form)),content={...c,...values};for(const [field,key] of [['heroImageFile','heroImage'],['backgroundImageFile','backgroundImage'],['introImageFile','introImage'],['introMusicFile','introMusic']]){const file=form.elements[field]?.files?.[0],asset=await readFile(file);if(asset)content[key]=asset;delete content[field]}for(const input of form.querySelectorAll('input[type=checkbox]'))content[input.name]=input.checked;delete content.introMusicName;content.introMusicName=form.elements.introMusicFile.files[0]?.name||c.introMusicName||'';const save=await fetch('/api/store/content',{method:'PUT',headers:{'Content-Type':'application/json',...auth()},body:JSON.stringify(content)});if(!save.ok)return alert('No se pudo guardar la configuración.');alert('Configuración de entrada guardada.');},true);
   }
   installPublicIntro().catch(()=>{}); installIntroAdmin().catch(()=>{});
+})();
+// VNBX final public override: keep the existing store and only expose optional music.
+(() => {
+  window.vnbxDisableIntro = true;
+  const cleanIntro = () => {
+    document.querySelectorAll('#vnbxIntro,#vnbxIntroFallback,.vnbx-intro,.vnbx-intro-fallback').forEach(node => node.remove());
+    document.body?.classList.remove('vnbx-intro-lock');
+    document.getElementById('floatingWhatsapp')?.remove();
+  };
+  cleanIntro();
+  if (document.body) new MutationObserver(cleanIntro).observe(document.body, {childList:true, subtree:true});
+
+  const style = document.createElement('style');
+  style.textContent = '.vnbx-music-control{position:fixed;right:18px;bottom:18px;z-index:50;border:1px solid #ffffff44;border-radius:999px;background:#172b4dee;color:#fff;padding:12px 16px;font-weight:800;box-shadow:0 10px 25px #0005;cursor:pointer}.vnbx-music-control:hover{background:#32145f}.vnbx-music-link{display:block;position:fixed;right:18px;bottom:18px;z-index:50;border-radius:999px;background:#172b4d;color:#fff;padding:12px 16px;text-decoration:none;font-weight:800;box-shadow:0 10px 25px #0005}';
+  document.head.appendChild(style);
+
+  const readFile = file => new Promise((resolve, reject) => {
+    if (!file || !file.size) return resolve('');
+    const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.onerror = reject; reader.readAsDataURL(file);
+  });
+  const stripIntroAdmin = () => document.querySelectorAll('[name^="intro"]').forEach(input => input.closest('label')?.remove());
+  stripIntroAdmin();
+  if (document.body) new MutationObserver(stripIntroAdmin).observe(document.body, {childList:true, subtree:true});
+
+  async function installMusicAdmin() {
+    const form = document.getElementById('contentForm');
+    if (!form || form.dataset.vnbxMusicFinal) return;
+    form.dataset.vnbxMusicFinal = '1';
+    const holder = document.createElement('div'); holder.className = 'wide';
+    holder.innerHTML = '<hr><h3>Música de la tienda</h3><label class="check"><input name="musicControlEnabled" type="checkbox" checked> Mostrar control de música a los clientes</label><label>Enlace de YouTube Music<input name="musicUrl" type="url" placeholder="Pegá aquí el enlace"></label><label>Audio descargado<input name="musicFile" type="file" accept="audio/*"><small class="hint">MP3, WAV u OGG se reproducen dentro de la tienda. Un enlace de YouTube Music se abre en una pestaña aparte.</small></label>';
+    form.append(holder);
+    const current = await fetch('/api/store', {headers:auth()}).then(response => response.ok ? response.json() : null).catch(() => null);
+    const saved = current?.content || {};
+    form.elements.musicControlEnabled.checked = saved.musicControlEnabled !== false;
+    form.elements.musicUrl.value = saved.musicUrl || '';
+    document.addEventListener('submit', async event => {
+      if (event.target !== form) return;
+      event.preventDefault(); event.stopImmediatePropagation();
+      const values = Object.fromEntries(new FormData(form));
+      const audio = await readFile(form.elements.musicFile.files[0]);
+      const content = {...saved, musicControlEnabled:form.elements.musicControlEnabled.checked, musicUrl:String(values.musicUrl || '').trim(), musicFile:audio || saved.musicFile || ''};
+      const response = await fetch('/api/store/content', {method:'PUT', headers:{'Content-Type':'application/json', ...auth()}, body:JSON.stringify(content)});
+      if (!response.ok) return alert('No se pudo guardar la música.');
+      alert('Configuración de música guardada.');
+    }, true);
+  }
+
+  async function installMusicPublic() {
+    if (!document.getElementById('products')) return;
+    const response = await fetch('/api/store?public=1').catch(() => null); if (!response?.ok) return;
+    const content = (await response.json()).content || {};
+    if (content.musicControlEnabled === false) return;
+    const url = String(content.musicUrl || '').trim(), file = String(content.musicFile || '').trim(); if (!url && !file) return;
+    if (url && !/^data:audio\//i.test(url)) { const link = document.createElement('a'); link.className='vnbx-music-link'; link.href=url; link.target='_blank'; link.rel='noopener'; link.textContent='♫ Abrir música'; document.body.append(link); return; }
+    const audio = new Audio(file || url); audio.loop = true;
+    const button = document.createElement('button'); button.type='button'; button.className='vnbx-music-control'; button.textContent='♫ Música apagada';
+    button.onclick = () => { if (audio.paused) audio.play().then(() => button.textContent='♫ Música encendida').catch(() => alert('Tocá nuevamente para activar la música.')); else { audio.pause(); button.textContent='♫ Música apagada'; } };
+    document.body.append(button);
+  }
+  installMusicAdmin().catch(() => {}); installMusicPublic().catch(() => {});
 })();

@@ -45,7 +45,19 @@
     const free = units >= Number(settings.freeShippingUnits || 3) || total >= Number(settings.freeShippingAmount || 50000);
     const summary = document.querySelector('#cartPanel .cart-summary');
     if (summary) { const note = summary.querySelector('.shipping-note') || document.createElement('div'); note.className = 'shipping-note'; note.textContent = free ? '🚚 Envío gratis aplicado' : '🚚 Envío a coordinar'; summary.prepend(note); }
+    updateCartDisplay();
     ensureCheckoutOptions(); populateCheckoutOptions();
+  }
+  function updateCartDisplay() {
+    const { cart, total, discount } = cartTotals();
+    document.querySelectorAll('#cartBody .cart-item').forEach((row, index) => {
+      const line = cart[index], product = products.find(item => item.id === line?.id);
+      const priceText = row.querySelector('small');
+      if (priceText && product && line) priceText.textContent = `${money(effectivePrice(product, line.qty))} · ${money(effectivePrice(product, line.qty) * line.qty)}`;
+    });
+    const discountEl = document.querySelector('#cartDiscount'), totalEl = document.querySelector('#cartTotal');
+    if (discountEl) discountEl.textContent = discount ? `- ${money(discount)}` : money(0);
+    if (totalEl) totalEl.textContent = money(total);
   }
   function checkout(event) {
     const { cart, units, total, discount } = cartTotals(); if (!cart.length) return; readStore();

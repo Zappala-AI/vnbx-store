@@ -1,1 +1,59 @@
-(()=>{let products=[],settings={};const read=()=>{try{const d=JSON.parse(localStorage.getItem('vnbx-store-data-v1')||'{}');products=d.products||[];settings=d.settings||{}}catch{}};const money=n=>new Intl.NumberFormat('es-AR',{style:'currency',currency:'ARS',maximumFractionDigits:0}).format(n||0);const price=(p,q)=>{if(!p)return 0;const wholesale=q>=Number(p.wholesaleMinUnits||0)&&Number(p.wholesaleMinUnits)>0&&Number(p.wholesalePrice)>=0?Number(p.wholesalePrice):Number(p.price)||0;return p.promotionalPrice!==undefined&&p.promotionalPrice!==''?Math.min(wholesale,Number(p.promotionalPrice)):wholesale};function sync(){read();const cart=JSON.parse(localStorage.getItem('vnbx-cart-v1')||'[]');let units=0,total=0;cart.forEach(x=>{const p=products.find(y=>y.id===x.id);if(p){units+=x.qty;total+=price(p,x.qty)*x.qty}});const free=units>=Number(settings.freeShippingUnits||3)||total>=Number(settings.freeShippingAmount||50000);const panel=document.querySelector('#cartPanel');if(panel){const note=panel.querySelector('.shipping-note')||document.createElement('div');note.className='shipping-note';note.textContent=free?'🚚 Envío gratis aplicado':'🚚 Envío a coordinar';panel.querySelector('.cart-summary')?.prepend(note)}}function checkout(e){const cart=JSON.parse(localStorage.getItem('vnbx-cart-v1')||'[]');if(!cart.length)return;read();const f=new FormData(e.target),lines=cart.map(x=>{const p=products.find(y=>y.id===x.id);return `• ${p?.name||x.id} x${x.qty} — ${money(price(p,x.qty)*x.qty)}`}).join('\n'),units=cart.reduce((n,x)=>n+x.qty,0),total=cart.reduce((n,x)=>{const p=products.find(y=>y.id===x.id);return n+price(p,x.qty)*x.qty},0),free=units>=Number(settings.freeShippingUnits||3)||total>=Number(settings.freeShippingAmount||50000),phone=String(settings.whatsapp||'').replace(/\D/g,''),msg=`Hola VNBX STORE, quiero realizar este pedido:\n\n${lines}\n\nTotal: ${money(total)}\n${free?'Envío: GRATIS':'Envío: A coordinar'}\n\nCliente: ${f.get('name')}\nTeléfono: ${f.get('phone')}\nEntrega: ${f.get('delivery')}\nDirección/localidad: ${f.get('address')||'A coordinar'}\nObservaciones: ${f.get('notes')||'Sin observaciones'}`;if(phone){e.preventDefault();e.stopImmediatePropagation();window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`,'_blank','noopener')}}document.addEventListener('DOMContentLoaded',()=>{read();new MutationObserver(sync).observe(document.body,{childList:true,subtree:true});document.querySelector('#checkoutForm')?.addEventListener('submit',checkout,true)});})();
+(() => {
+  let products = [], settings = {};
+  const storeKey = 'vnbx-store-data-v1';
+  const money = value => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(value || 0);
+  function readStore() { try { const data = JSON.parse(localStorage.getItem(storeKey) || '{}'); products = data.products || []; settings = data.settings || {}; } catch { products = []; settings = {}; } }
+  function contacts() {
+    let list = settings.whatsappContacts;
+    if (typeof list === 'string') { try { list = JSON.parse(list); } catch { list = null; } }
+    if (Array.isArray(list)) list = list.filter(item => item?.phone);
+    if (!list?.length) list = [{ name: settings.whatsapp1Name || 'Ventas', phone: settings.whatsapp1Phone || settings.whatsapp || '' }, { name: settings.whatsapp2Name || 'Consultas', phone: settings.whatsapp2Phone || '' }].filter(item => item.phone);
+    return list.map((item, index) => ({ name: item.name || `Contacto ${index + 1}`, phone: String(item.phone || '').replace(/\D/g, '') })).filter(item => item.phone);
+  }
+  function paymentMethods() {
+    let methods = settings.paymentMethods;
+    if (typeof methods === 'string') methods = methods.split(/\r?\n|,/).map(item => item.trim()).filter(Boolean);
+    if (!Array.isArray(methods) || !methods.length) methods = ['Transferencia bancaria', 'Mercado Pago', 'Efectivo al retirar'];
+    return methods;
+  }
+  function effectivePrice(product, quantity) {
+    if (!product) return 0;
+    const wholesale = quantity >= Number(product.wholesaleMinUnits || 0) && Number(product.wholesaleMinUnits) > 0 && Number(product.wholesalePrice) >= 0 ? Number(product.wholesalePrice) : Number(product.price) || 0;
+    return product.promotionalPrice !== undefined && product.promotionalPrice !== '' ? Math.min(wholesale, Number(product.promotionalPrice)) : wholesale;
+  }
+  function cartTotals() {
+    const cart = JSON.parse(localStorage.getItem('vnbx-cart-v1') || '[]');
+    let units = 0, total = 0, regular = 0;
+    cart.forEach(line => { const product = products.find(item => item.id === line.id); if (!product) return; units += line.qty; total += effectivePrice(product, line.qty) * line.qty; regular += (Number(product.oldPrice) > Number(product.price) ? Number(product.oldPrice) : Number(product.price)) * line.qty; });
+    return { cart, units, total, discount: Math.max(0, regular - total) };
+  }
+  function ensureCheckoutOptions() {
+    const form = document.querySelector('#checkoutForm'), grid = form?.querySelector('.form-grid');
+    if (!form || !grid || form.elements.whatsappTarget) return;
+    const contact = document.createElement('label'); contact.className = 'wide'; contact.innerHTML = 'Enviar pedido a<select name="whatsappTarget" required></select>';
+    const payment = document.createElement('label'); payment.className = 'wide'; payment.innerHTML = 'Método de pago<select name="paymentMethod" required></select>';
+    grid.append(contact, payment); populateCheckoutOptions();
+  }
+  function populateCheckoutOptions() {
+    const form = document.querySelector('#checkoutForm'); if (!form) return;
+    const contact = form.elements.whatsappTarget, payment = form.elements.paymentMethod;
+    if (contact) contact.innerHTML = contacts().map((item, index) => `<option value="${index}">${item.name}</option>`).join('');
+    if (payment) payment.innerHTML = paymentMethods().map(method => `<option>${method}</option>`).join('');
+  }
+  function syncShippingNote() {
+    readStore(); const { units, total } = cartTotals();
+    const free = units >= Number(settings.freeShippingUnits || 3) || total >= Number(settings.freeShippingAmount || 50000);
+    const summary = document.querySelector('#cartPanel .cart-summary');
+    if (summary) { const note = summary.querySelector('.shipping-note') || document.createElement('div'); note.className = 'shipping-note'; note.textContent = free ? '🚚 Envío gratis aplicado' : '🚚 Envío a coordinar'; summary.prepend(note); }
+    ensureCheckoutOptions(); populateCheckoutOptions();
+  }
+  function checkout(event) {
+    const { cart, units, total, discount } = cartTotals(); if (!cart.length) return; readStore();
+    const form = new FormData(event.target), list = contacts(), selected = list[Number(form.get('whatsappTarget'))] || list[0];
+    const lines = cart.map(line => { const product = products.find(item => item.id === line.id); return `• ${product?.name || line.id} x${line.qty} — ${money(effectivePrice(product, line.qty) * line.qty)}`; }).join('\n');
+    const free = units >= Number(settings.freeShippingUnits || 3) || total >= Number(settings.freeShippingAmount || 50000);
+    const message = `Hola VNBX STORE, quiero realizar este pedido:\n\n${lines}\n\nTotal: ${money(total)}\nDescuentos: ${discount ? money(discount) : money(0)}\n${free ? 'Envío: GRATIS' : 'Envío: A coordinar'}\nMétodo de pago: ${form.get('paymentMethod')}\n\nCliente: ${form.get('name')}\nTeléfono: ${form.get('phone')}\nEntrega: ${form.get('delivery')}\nDirección/localidad: ${form.get('address') || 'A coordinar'}\nObservaciones: ${form.get('notes') || 'Sin observaciones'}`;
+    if (!selected?.phone) return; event.preventDefault(); event.stopImmediatePropagation(); window.open(`https://wa.me/${selected.phone}?text=${encodeURIComponent(message)}`, '_blank', 'noopener');
+  }
+  document.addEventListener('DOMContentLoaded', () => { readStore(); ensureCheckoutOptions(); new MutationObserver(syncShippingNote).observe(document.body, { childList: true, subtree: true }); document.querySelector('#checkoutForm')?.addEventListener('submit', checkout, true); });
+})();

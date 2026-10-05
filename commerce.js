@@ -37,14 +37,16 @@
   function populateCheckoutOptions() {
     const form = document.querySelector('#checkoutForm'); if (!form) return;
     const contact = form.elements.whatsappTarget, payment = form.elements.paymentMethod;
-    if (contact) contact.innerHTML = contacts().map((item, index) => `<option value="${index}">${item.name}</option>`).join('');
-    if (payment) payment.innerHTML = paymentMethods().map(method => `<option>${method}</option>`).join('');
+    const contactHtml = contacts().map((item, index) => `<option value="${index}">${item.name}</option>`).join('');
+    const paymentHtml = paymentMethods().map(method => `<option>${method}</option>`).join('');
+    if (contact && contact.innerHTML !== contactHtml) contact.innerHTML = contactHtml;
+    if (payment && payment.innerHTML !== paymentHtml) payment.innerHTML = paymentHtml;
   }
   function syncShippingNote() {
     readStore(); const { units, total } = cartTotals();
     const free = units >= Number(settings.freeShippingUnits || 3) || total >= Number(settings.freeShippingAmount || 50000);
     const summary = document.querySelector('#cartPanel .cart-summary');
-    if (summary) { const note = summary.querySelector('.shipping-note') || document.createElement('div'); note.className = 'shipping-note'; note.textContent = free ? '🚚 Envío gratis aplicado' : '🚚 Envío a coordinar'; summary.prepend(note); }
+    if (summary) { const note = summary.querySelector('.shipping-note') || document.createElement('div'); note.className = 'shipping-note'; const text = free ? '🚚 Envío gratis aplicado' : '🚚 Envío a coordinar'; if (note.textContent !== text) note.textContent = text; if (!note.isConnected) summary.prepend(note); }
     updateCartDisplay();
     ensureCheckoutOptions(); populateCheckoutOptions();
   }
@@ -67,5 +69,5 @@
     const message = `Hola VNBX STORE, quiero realizar este pedido:\n\n${lines}\n\nTotal: ${money(total)}\nDescuentos: ${discount ? money(discount) : money(0)}\n${free ? 'Envío: GRATIS' : 'Envío: A coordinar'}\nMétodo de pago: ${form.get('paymentMethod')}\n\nCliente: ${form.get('name')}\nTeléfono: ${form.get('phone')}\nEntrega: ${form.get('delivery')}\nDirección/localidad: ${form.get('address') || 'A coordinar'}\nObservaciones: ${form.get('notes') || 'Sin observaciones'}`;
     if (!selected?.phone) return; event.preventDefault(); event.stopImmediatePropagation(); window.open(`https://wa.me/${selected.phone}?text=${encodeURIComponent(message)}`, '_blank', 'noopener');
   }
-  document.addEventListener('DOMContentLoaded', () => { readStore(); ensureCheckoutOptions(); new MutationObserver(syncShippingNote).observe(document.body, { childList: true, subtree: true }); document.querySelector('#checkoutForm')?.addEventListener('submit', checkout, true); });
+  document.addEventListener('DOMContentLoaded', () => { readStore(); ensureCheckoutOptions(); let scheduled = false; const observer = new MutationObserver(() => { if (scheduled) return; scheduled = true; requestAnimationFrame(() => { scheduled = false; syncShippingNote(); }); }); observer.observe(document.body, { childList: true, subtree: true }); document.querySelector('#checkoutForm')?.addEventListener('submit', checkout, true); });
 })();

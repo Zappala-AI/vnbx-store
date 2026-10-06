@@ -82,6 +82,10 @@
           seen.add(key);
           settings[key] = value;
         }
+        for (const key of ['whatsapp1Name', 'whatsapp1Phone', 'whatsapp1Description', 'whatsapp2Name', 'whatsapp2Phone', 'whatsapp2Description']) {
+          const field = form.elements[key];
+          if (field) settings[key] = String(field.value || '').trim();
+        }
         if (form.elements.heroImageEnabled) settings.heroImageEnabled = form.elements.heroImageEnabled.checked;
         const save = await fetch('/api/store', {
           method: 'PUT',
@@ -92,6 +96,10 @@
         let result = {};
         try { result = await save.json(); } catch {}
         if (!save.ok) throw new Error(result.error || `No se pudo guardar (error ${save.status})`);
+        const verificationResponse = await fetch('/api/store?private=1', { credentials: 'same-origin', cache: 'no-store' });
+        if (!verificationResponse.ok) throw new Error('No se pudo verificar la configuración guardada.');
+        const verification = await verificationResponse.json();
+        for (const key of ['whatsapp1Phone', 'whatsapp2Phone']) if (String(verification.settings?.[key] || '') !== String(settings[key] || '')) throw new Error('El servidor no confirmó los números de WhatsApp.');
         try { localStorage.setItem('vnbx-store-data-v1', JSON.stringify({ ...current, settings })); } catch {}
         alert('Configuración guardada en el servidor.');
       } catch (error) {

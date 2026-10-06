@@ -50,7 +50,7 @@
     button.dataset.directSave = '1';
     button.addEventListener('click', () => {
       const form = productForm();
-      if (typeof window.saveProduct === 'function' && form) window.saveProduct({ preventDefault() {}, currentTarget: form, target: form });
+      if (form) form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
     });
   }
   function enhance() { addProductField('wholesaleMinUnits', 'Promo 1: unidades mínimas'); addProductField('wholesalePrice', 'Promo 1: precio unitario'); addProductField('tier2MinUnits', 'Promo 2: unidades mínimas'); addProductField('tier2Price', 'Promo 2: precio unitario'); addProductField('tier3MinUnits', 'Promo 3: unidades mínimas'); addProductField('tier3Price', 'Promo 3: precio unitario'); addAdvancedSettings(); addGeneralStoreSettings(); fillWholesale(); wireProductSave(); }

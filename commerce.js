@@ -30,16 +30,16 @@
   function ensureCheckoutOptions() {
     const form = document.querySelector('#checkoutForm'), grid = form?.querySelector('.form-grid');
     if (!form || !grid || form.elements.whatsappTarget) return;
-    const contact = document.createElement('label'); contact.className = 'wide'; contact.innerHTML = 'Enviar pedido a<select name="whatsappTarget" required></select>';
+    const contact = document.createElement('label'); contact.className = 'wide'; contact.innerHTML = 'Enviar pedido a<div class="whatsapp-choices"></div><input type="hidden" name="whatsappTarget" value="0" required>';
     const payment = document.createElement('label'); payment.className = 'wide'; payment.innerHTML = 'Método de pago<select name="paymentMethod" required></select>';
     grid.append(contact, payment); populateCheckoutOptions();
   }
   function populateCheckoutOptions() {
     const form = document.querySelector('#checkoutForm'); if (!form) return;
-    const contact = form.elements.whatsappTarget, payment = form.elements.paymentMethod;
-    const contactHtml = contacts().map((item, index) => `<option value="${index}">${item.name}</option>`).join('');
+    const contact = form.elements.whatsappTarget, choices = form.querySelector('.whatsapp-choices'), payment = form.elements.paymentMethod;
+    const contactHtml = contacts().map((item, index) => `<button type="button" class="whatsapp-choice${index === 0 ? ' active' : ''}" data-wa-index="${index}">⌁ ${item.name}</button>`).join('');
     const paymentHtml = paymentMethods().map(method => `<option>${method}</option>`).join('');
-    if (contact && contact.innerHTML !== contactHtml) contact.innerHTML = contactHtml;
+    if (choices && choices.innerHTML !== contactHtml) { choices.innerHTML = contactHtml; choices.querySelectorAll('[data-wa-index]').forEach(button => button.addEventListener('click', () => { contact.value = button.dataset.waIndex; choices.querySelectorAll('[data-wa-index]').forEach(item => item.classList.toggle('active', item === button)); })); }
     if (payment && payment.innerHTML !== paymentHtml) payment.innerHTML = paymentHtml;
   }
   function syncShippingNote() {
@@ -52,6 +52,8 @@
   }
   function updateCartDisplay() {
     const { cart, total, discount } = cartTotals();
+    const matched = cart.filter(line => products.some(item => String(item.id) === String(line.id))).length;
+    if (matched !== cart.length) return;
     document.querySelectorAll('#cartBody .cart-item').forEach((row, index) => {
       const line = cart[index], product = products.find(item => String(item.id) === String(line?.id));
       const priceText = row.querySelector('small');

@@ -25,7 +25,7 @@
     const cart = JSON.parse(localStorage.getItem('vnbx-cart-v1') || '[]');
     let units = 0, total = 0, regular = 0;
     cart.forEach(line => { const product = products.find(item => String(item.id) === String(line.id)); if (!product) return; units += line.qty; total += effectivePrice(product, line.qty) * line.qty; regular += (Number(product.oldPrice) > Number(product.price) ? Number(product.oldPrice) : Number(product.price)) * line.qty; });
-    return { cart, units, total, discount: Math.max(0, regular - total) };
+    return { cart, units, total, regular, discount: Math.max(0, regular - total) };
   }
   function ensureCheckoutOptions() {
     const form = document.querySelector('#checkoutForm'), grid = form?.querySelector('.form-grid');
@@ -51,7 +51,7 @@
     ensureCheckoutOptions(); populateCheckoutOptions();
   }
   function updateCartDisplay() {
-    const { cart, total, discount } = cartTotals();
+    const { cart, total, regular, discount } = cartTotals();
     const matched = cart.filter(line => products.some(item => String(item.id) === String(line.id))).length;
     if (matched !== cart.length) return;
     document.querySelectorAll('#cartBody .cart-item').forEach((row, index) => {
@@ -59,7 +59,8 @@
       const priceText = row.querySelector('small');
       if (priceText && product && line) { const text = `${money(effectivePrice(product, line.qty))} · ${money(effectivePrice(product, line.qty) * line.qty)}`; if (priceText.textContent !== text) priceText.textContent = text; }
     });
-    const discountEl = document.querySelector('#cartDiscount'), totalEl = document.querySelector('#cartTotal');
+    const subtotalEl = document.querySelector('#cartSubtotal'), discountEl = document.querySelector('#cartDiscount'), totalEl = document.querySelector('#cartTotal');
+    if (subtotalEl) subtotalEl.textContent = money(regular);
     if (discountEl) discountEl.textContent = discount ? `- ${money(discount)}` : money(0);
     if (totalEl) totalEl.textContent = money(total);
   }

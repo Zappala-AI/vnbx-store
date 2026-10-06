@@ -28,9 +28,9 @@
     const id = form?.elements.id?.value;
     const products = JSON.parse(localStorage.getItem('vnbx-store-data-v1') || '{}').products || [];
     const product = products.find(item => item.id === id) || {};
-    for (const name of ['wholesaleMinUnits', 'wholesalePrice']) if (form?.elements[name]) form.elements[name].value = product[name] ?? '';
+    for (const name of ['wholesaleMinUnits', 'wholesalePrice', 'tier2MinUnits', 'tier2Price', 'tier3MinUnits', 'tier3Price']) if (form?.elements[name]) form.elements[name].value = product[name] ?? '';
   }
-  function enhance() { addProductField('wholesaleMinUnits', 'Cantidad mínima mayorista'); addProductField('wholesalePrice', 'Precio unitario mayorista'); addAdvancedSettings(); fillWholesale(); }
+  function enhance() { addProductField('wholesaleMinUnits', 'Promo 1: unidades mínimas'); addProductField('wholesalePrice', 'Promo 1: precio unitario'); addProductField('tier2MinUnits', 'Promo 2: unidades mínimas'); addProductField('tier2Price', 'Promo 2: precio unitario'); addProductField('tier3MinUnits', 'Promo 3: unidades mínimas'); addProductField('tier3Price', 'Promo 3: precio unitario'); addAdvancedSettings(); fillWholesale(); }
   document.addEventListener('DOMContentLoaded', () => {
     enhance();
     document.addEventListener('click', event => { if (event.target.closest('#newProduct, [data-edit]')) setTimeout(enhance, 80); });

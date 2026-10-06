@@ -18,8 +18,11 @@
   }
   function effectivePrice(product, quantity) {
     if (!product) return 0;
-    const wholesale = quantity >= Number(product.wholesaleMinUnits || 0) && Number(product.wholesaleMinUnits) > 0 && Number(product.wholesalePrice) >= 0 ? Number(product.wholesalePrice) : Number(product.price) || 0;
-    return product.promotionalPrice !== undefined && product.promotionalPrice !== '' ? Math.min(wholesale, Number(product.promotionalPrice)) : wholesale;
+    const base = Number(product.price) || 0;
+    const tiers = [['wholesaleMinUnits', 'wholesalePrice'], ['tier2MinUnits', 'tier2Price'], ['tier3MinUnits', 'tier3Price']].map(([minKey, priceKey]) => ({ min: Number(product[minKey] || 0), price: Number(product[priceKey]) })).filter(tier => tier.min > 0 && Number.isFinite(tier.price) && tier.price >= 0).sort((a, b) => a.min - b.min);
+    let price = base;
+    tiers.forEach(tier => { if (quantity >= tier.min) price = tier.price; });
+    return product.promotionalPrice !== undefined && product.promotionalPrice !== '' ? Math.min(price, Number(product.promotionalPrice)) : price;
   }
   function cartTotals() {
     const cart = JSON.parse(localStorage.getItem('vnbx-cart-v1') || '[]');

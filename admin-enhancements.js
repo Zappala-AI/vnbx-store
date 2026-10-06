@@ -34,15 +34,5 @@
   document.addEventListener('DOMContentLoaded', () => {
     enhance();
     document.addEventListener('click', event => { if (event.target.closest('#newProduct, [data-edit]')) setTimeout(enhance, 80); });
-    productForm()?.addEventListener('submit', () => setTimeout(async () => {
-      const form = productForm(), id = form?.elements.id?.value;
-      if (!id) return;
-      const data = JSON.parse(localStorage.getItem('vnbx-store-data-v1') || '{}'), product = data.products?.find(item => item.id === id);
-      if (!product) return;
-      product.wholesaleMinUnits = Number(form.elements.wholesaleMinUnits?.value || 0);
-      product.wholesalePrice = Number(form.elements.wholesalePrice?.value || 0);
-      localStorage.setItem('vnbx-store-data-v1', JSON.stringify(data));
-      try { await fetch('/api/store', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(data) }); } catch {}
-    }, 180), true);
   });
 })();

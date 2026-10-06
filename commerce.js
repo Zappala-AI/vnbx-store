@@ -55,7 +55,7 @@
     document.querySelectorAll('#cartBody .cart-item').forEach((row, index) => {
       const line = cart[index], product = products.find(item => item.id === line?.id);
       const priceText = row.querySelector('small');
-      if (priceText && product && line) priceText.textContent = `${money(effectivePrice(product, line.qty))} · ${money(effectivePrice(product, line.qty) * line.qty)}`;
+      if (priceText && product && line) { const text = `${money(effectivePrice(product, line.qty))} · ${money(effectivePrice(product, line.qty) * line.qty)}`; if (priceText.textContent !== text) priceText.textContent = text; }
     });
     const discountEl = document.querySelector('#cartDiscount'), totalEl = document.querySelector('#cartTotal');
     if (discountEl) discountEl.textContent = discount ? `- ${money(discount)}` : money(0);
@@ -69,5 +69,5 @@
     const message = `Hola VNBX STORE, quiero realizar este pedido:\n\n${lines}\n\nTotal: ${money(total)}\nDescuentos: ${discount ? money(discount) : money(0)}\n${free ? 'Envío: GRATIS' : 'Envío: A coordinar'}\nMétodo de pago: ${form.get('paymentMethod')}\n\nCliente: ${form.get('name')}\nTeléfono: ${form.get('phone')}\nEntrega: ${form.get('delivery')}\nDirección/localidad: ${form.get('address') || 'A coordinar'}\nObservaciones: ${form.get('notes') || 'Sin observaciones'}`;
     if (!selected?.phone) return; event.preventDefault(); event.stopImmediatePropagation(); window.open(`https://wa.me/${selected.phone}?text=${encodeURIComponent(message)}`, '_blank', 'noopener');
   }
-  document.addEventListener('DOMContentLoaded', () => { readStore(); ensureCheckoutOptions(); let scheduled = false; const observer = new MutationObserver(() => { if (scheduled) return; scheduled = true; requestAnimationFrame(() => { scheduled = false; syncShippingNote(); }); }); observer.observe(document.body, { childList: true, subtree: true }); document.querySelector('#checkoutForm')?.addEventListener('submit', checkout, true); });
+  document.addEventListener('DOMContentLoaded', () => { readStore(); ensureCheckoutOptions(); let scheduled = false; const observer = new MutationObserver(() => { if (scheduled) return; scheduled = true; requestAnimationFrame(() => { scheduled = false; syncShippingNote(); }); }); const cartPanel = document.querySelector('#cartPanel'); if (cartPanel) observer.observe(cartPanel, { childList: true, subtree: true }); document.querySelector('#checkoutForm')?.addEventListener('submit', checkout, true); });
 })();

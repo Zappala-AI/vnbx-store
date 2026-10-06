@@ -5,8 +5,10 @@
   function readStore() { try { const data = JSON.parse(localStorage.getItem(storeKey) || '{}'); products = data.products || []; settings = data.settings || {}; if (!settings.whatsapp1Phone && !settings.whatsapp) settings = { ...settings, whatsapp: '2644118290', whatsapp1Phone: '2644118290' }; } catch { products = []; settings = { whatsapp: '2644118290', whatsapp1Phone: '2644118290' }; } }
   function contacts() {
     let list = settings.whatsappContacts;
-    if (typeof list === 'string') { try { list = JSON.parse(list); } catch { list = null; } }
     const fallback = [{ name: settings.whatsapp1Name || 'Ventas', description: settings.whatsapp1Description || '', phone: settings.whatsapp1Phone || settings.whatsapp || '' }, { name: settings.whatsapp2Name || 'Consultas', description: settings.whatsapp2Description || '', phone: settings.whatsapp2Phone || '' }];
+    const configured = fallback.filter(item => item.phone).length;
+    if (configured >= 1) list = fallback;
+    else if (typeof list === 'string') { try { list = JSON.parse(list); } catch { list = null; } }
     if (!Array.isArray(list) || !list.length) list = fallback;
     else { list = list.slice(0, 2); while (list.length < 2) list.push(fallback[list.length]); }
     return list.map((item, index) => ({ name: item.name || `Contacto ${index + 1}`, description: item.description || item.note || '', phone: String(item.phone || '').replace(/\D/g, '') })).slice(0, 2);
@@ -40,9 +42,9 @@
   }
   function populateCheckoutOptions() {
     const form = document.querySelector('#checkoutForm'); if (!form) return;
-    const contact = form.elements.whatsappTarget, choices = form.querySelector('.whatsapp-choices'), payment = form.elements.paymentMethod, available = contacts().findIndex(item => item.phone);
-    if (contact && available >= 0 && !contacts()[Number(contact.value)]?.phone) contact.value = String(available);
-    const contactHtml = contacts().map((item, index) => `<button type="button" class="whatsapp-choice${index === Number(contact?.value || available) ? ' active' : ''}" data-wa-index="${index}"${item.phone ? '' : ' disabled'}>⌁ ${item.name}${item.description ? ` · ${item.description}` : item.phone ? '' : ' · Falta configurar el número'}</button>`).join('');
+    const contact = form.elements.whatsappTarget, choices = form.querySelector('.whatsapp-choices'), payment = form.elements.paymentMethod, contactList = contacts(), available = contactList.findIndex(item => item.phone);
+    if (contact && available >= 0 && !contactList[Number(contact.value)]?.phone) contact.value = String(available);
+    const contactHtml = contactList.map((item, index) => `<button type="button" class="whatsapp-choice${index === Number(contact?.value || available) ? ' active' : ''}" data-wa-index="${index}"${item.phone ? '' : ' disabled'}>⌁ ${item.name}${item.description ? ` · ${item.description}` : item.phone ? '' : ' · Falta configurar el número'}</button>`).join('');
     const paymentHtml = paymentMethods().map(method => `<option>${method}</option>`).join('');
     if (choices && choices.innerHTML !== contactHtml) { choices.innerHTML = contactHtml; choices.querySelectorAll('[data-wa-index]:not(:disabled)').forEach(button => button.addEventListener('click', () => { contact.value = button.dataset.waIndex; choices.querySelectorAll('[data-wa-index]').forEach(item => item.classList.toggle('active', item === button)); })); }
     if (payment && payment.innerHTML !== paymentHtml) payment.innerHTML = paymentHtml;

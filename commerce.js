@@ -24,7 +24,7 @@
   function cartTotals() {
     const cart = JSON.parse(localStorage.getItem('vnbx-cart-v1') || '[]');
     let units = 0, total = 0, regular = 0;
-    cart.forEach(line => { const product = products.find(item => item.id === line.id); if (!product) return; units += line.qty; total += effectivePrice(product, line.qty) * line.qty; regular += (Number(product.oldPrice) > Number(product.price) ? Number(product.oldPrice) : Number(product.price)) * line.qty; });
+    cart.forEach(line => { const product = products.find(item => String(item.id) === String(line.id)); if (!product) return; units += line.qty; total += effectivePrice(product, line.qty) * line.qty; regular += (Number(product.oldPrice) > Number(product.price) ? Number(product.oldPrice) : Number(product.price)) * line.qty; });
     return { cart, units, total, discount: Math.max(0, regular - total) };
   }
   function ensureCheckoutOptions() {
@@ -53,7 +53,7 @@
   function updateCartDisplay() {
     const { cart, total, discount } = cartTotals();
     document.querySelectorAll('#cartBody .cart-item').forEach((row, index) => {
-      const line = cart[index], product = products.find(item => item.id === line?.id);
+      const line = cart[index], product = products.find(item => String(item.id) === String(line?.id));
       const priceText = row.querySelector('small');
       if (priceText && product && line) { const text = `${money(effectivePrice(product, line.qty))} · ${money(effectivePrice(product, line.qty) * line.qty)}`; if (priceText.textContent !== text) priceText.textContent = text; }
     });
@@ -62,12 +62,12 @@
     if (totalEl) totalEl.textContent = money(total);
   }
   function checkout(event) {
-    const { cart, units, total, discount } = cartTotals(); if (!cart.length) return; readStore();
+    const { cart, units, total, discount } = cartTotals(); if (!cart.length) return; event.preventDefault(); event.stopImmediatePropagation(); readStore();
     const form = new FormData(event.target), list = contacts(), selected = list[Number(form.get('whatsappTarget'))] || list[0];
-    const lines = cart.map(line => { const product = products.find(item => item.id === line.id); return `• ${product?.name || line.id} x${line.qty} — ${money(effectivePrice(product, line.qty) * line.qty)}`; }).join('\n');
+    const lines = cart.map(line => { const product = products.find(item => String(item.id) === String(line.id)); return `• ${product?.name || line.id} x${line.qty} — ${money(effectivePrice(product, line.qty) * line.qty)}`; }).join('\n');
     const free = units >= Number(settings.freeShippingUnits || 3) || total >= Number(settings.freeShippingAmount || 50000);
     const message = `Hola VNBX STORE, quiero realizar este pedido:\n\n${lines}\n\nTotal: ${money(total)}\nDescuentos: ${discount ? money(discount) : money(0)}\n${free ? 'Envío: GRATIS' : 'Envío: A coordinar'}\nMétodo de pago: ${form.get('paymentMethod')}\n\nCliente: ${form.get('name')}\nTeléfono: ${form.get('phone')}\nEntrega: ${form.get('delivery')}\nDirección/localidad: ${form.get('address') || 'A coordinar'}\nObservaciones: ${form.get('notes') || 'Sin observaciones'}`;
-    if (!selected?.phone) return; event.preventDefault(); event.stopImmediatePropagation(); window.open(`https://wa.me/${selected.phone}?text=${encodeURIComponent(message)}`, '_blank', 'noopener');
+    if (!selected?.phone) { alert('Configurá el número de WhatsApp 1 desde Administración antes de recibir pedidos.'); return; } window.open(`https://wa.me/${selected.phone}?text=${encodeURIComponent(message)}`, '_blank', 'noopener');
   }
   document.addEventListener('DOMContentLoaded', () => { readStore(); ensureCheckoutOptions(); let scheduled = false; const observer = new MutationObserver(() => { if (scheduled) return; scheduled = true; requestAnimationFrame(() => { scheduled = false; syncShippingNote(); }); }); const cartPanel = document.querySelector('#cartPanel'); if (cartPanel) observer.observe(cartPanel, { childList: true, subtree: true }); document.querySelector('#checkoutForm')?.addEventListener('submit', checkout, true); });
 })();

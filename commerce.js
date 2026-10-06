@@ -33,7 +33,7 @@
   function ensureCheckoutOptions() {
     const form = document.querySelector('#checkoutForm'), grid = form?.querySelector('.form-grid');
     if (!form || !grid || form.elements.whatsappTarget) return;
-    const contact = document.createElement('label'); contact.className = 'wide'; contact.innerHTML = 'Enviar pedido a<div class="whatsapp-choices"></div><input type="hidden" name="whatsappTarget" value="0" required>';
+    const contact = document.createElement('div'); contact.className = 'wide checkout-contact-field'; contact.innerHTML = '<span class="field-label">Elegí el WhatsApp de destino</span><small class="field-help">Seleccioná uno de los botones. La dirección se completa en el campo “Dirección / localidad”.</small><div class="whatsapp-choices"></div><input type="hidden" name="whatsappTarget" value="0" required>';
     const payment = document.createElement('label'); payment.className = 'wide'; payment.innerHTML = 'Método de pago<select name="paymentMethod" required></select>';
     grid.append(contact, payment); populateCheckoutOptions();
   }

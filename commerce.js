@@ -30,7 +30,7 @@
   function cartTotals() {
     const cart = JSON.parse(localStorage.getItem('vnbx-cart-v1') || '[]');
     let units = 0, total = 0, regular = 0;
-    cart.forEach(line => { const product = products.find(item => String(item.id) === String(line.id)); if (!product) return; units += line.qty; total += effectivePrice(product, line.qty) * line.qty; regular += (Number(product.oldPrice) > Number(product.price) ? Number(product.oldPrice) : Number(product.price)) * line.qty; });
+    cart.forEach(line => { const product = products.find(item => String(item.id) === String(line.id)); if (!product) return; units += line.qty; total += effectivePrice(product, line.qty) * line.qty; regular += (Number(product.price) || 0) * line.qty; });
     return { cart, units, total, regular, discount: Math.max(0, regular - total) };
   }
   function ensureCheckoutOptions() {

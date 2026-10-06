@@ -146,7 +146,39 @@
       button.addEventListener('click', () => saveCollection(button, key, label));
     });
   }
-  function enhance() { addProductField('wholesaleMinUnits', 'Promo 1: unidades mínimas'); addProductField('wholesalePrice', 'Promo 1: precio unitario'); addProductField('tier2MinUnits', 'Promo 2: unidades mínimas'); addProductField('tier2Price', 'Promo 2: precio unitario'); addProductField('tier3MinUnits', 'Promo 3: unidades mínimas'); addProductField('tier3Price', 'Promo 3: precio unitario'); addAdvancedSettings(); addGeneralStoreSettings(); fillWholesale(); wireProductSave(); wireSectionSaves(); wireSettingsSave(); }
+  function wireClearProducts() {
+    const toolbar = document.querySelector('#productsTab .section-toolbar');
+    if (!toolbar || document.querySelector('#clearProducts')) return;
+    const button = document.createElement('button');
+    button.id = 'clearProducts';
+    button.type = 'button';
+    button.className = 'danger-btn';
+    button.textContent = 'Vaciar productos';
+    toolbar.append(button);
+    button.addEventListener('click', async () => {
+      if (!confirm('¿Eliminar todos los productos? Esta acción no se puede deshacer.')) return;
+      button.disabled = true;
+      button.textContent = 'Eliminando…';
+      try {
+        const response = await fetch('/api/store?private=1', { credentials: 'same-origin' });
+        if (!response.ok) throw new Error(`No se pudo leer la tienda (error ${response.status})`);
+        const current = await response.json();
+        const save = await fetch('/api/store', { method: 'PUT', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...current, products: [] }) });
+        if (!save.ok) throw new Error(`No se pudo vaciar el catálogo (error ${save.status})`);
+        try { localStorage.setItem('vnbx-store-data-v1', JSON.stringify({ ...current, products: [] })); } catch {}
+        if (Array.isArray(window.data?.products)) window.data.products = [];
+        document.querySelector('#productRows').innerHTML = '<tr><td colspan="6">Todavía no hay productos cargados.</td></tr>';
+        alert('Catálogo vaciado correctamente.');
+        location.reload();
+      } catch (error) {
+        alert(error.message || 'No se pudo vaciar el catálogo.');
+      } finally {
+        button.disabled = false;
+        button.textContent = 'Vaciar productos';
+      }
+    });
+  }
+  function enhance() { addProductField('wholesaleMinUnits', 'Promo 1: unidades mínimas'); addProductField('wholesalePrice', 'Promo 1: precio unitario'); addProductField('tier2MinUnits', 'Promo 2: unidades mínimas'); addProductField('tier2Price', 'Promo 2: precio unitario'); addProductField('tier3MinUnits', 'Promo 3: unidades mínimas'); addProductField('tier3Price', 'Promo 3: precio unitario'); addAdvancedSettings(); addGeneralStoreSettings(); fillWholesale(); wireProductSave(); wireSectionSaves(); wireSettingsSave(); wireClearProducts(); }
   document.addEventListener('DOMContentLoaded', () => {
     enhance();
     document.addEventListener('click', event => { if (event.target.closest('#newProduct, [data-edit]')) setTimeout(enhance, 80); });

@@ -60,7 +60,7 @@
     });
   }
   function wireSettingsSave() {
-    const original = document.querySelector('#saveAll');
+    const original = document.querySelector('#saveSettings');
     if (!original || original.dataset.directSettingsSave) return;
     const button = original.cloneNode(true);
     button.dataset.directSettingsSave = '1';
@@ -98,11 +98,55 @@
         alert(`No se pudo guardar la configuración: ${error.message || 'error desconocido'}`);
       } finally {
         button.disabled = false;
-        button.textContent = 'Guardar cambios';
+        button.textContent = 'Guardar configuración';
       }
     });
   }
-  function enhance() { addProductField('wholesaleMinUnits', 'Promo 1: unidades mínimas'); addProductField('wholesalePrice', 'Promo 1: precio unitario'); addProductField('tier2MinUnits', 'Promo 2: unidades mínimas'); addProductField('tier2Price', 'Promo 2: precio unitario'); addProductField('tier3MinUnits', 'Promo 3: unidades mínimas'); addProductField('tier3Price', 'Promo 3: precio unitario'); addAdvancedSettings(); addGeneralStoreSettings(); fillWholesale(); wireProductSave(); wireSettingsSave(); }
+  async function saveCollection(button, key, label) {
+    if (button.disabled) return;
+    button.disabled = true;
+    const originalText = button.textContent;
+    button.textContent = 'Guardando…';
+    try {
+      const cached = JSON.parse(localStorage.getItem('vnbx-store-data-v1') || '{}');
+      const response = await fetch('/api/store?private=1', { credentials: 'same-origin' });
+      if (!response.ok) throw new Error(`No se pudo leer la tienda (error ${response.status})`);
+      const current = await response.json();
+      const value = Array.isArray(cached[key]) ? cached[key] : (Array.isArray(current[key]) ? current[key] : []);
+      const save = await fetch('/api/store', { method: 'PUT', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...current, [key]: value }) });
+      let result = {};
+      try { result = await save.json(); } catch {}
+      if (!save.ok) throw new Error(result.error || `No se pudo guardar (error ${save.status})`);
+      try { localStorage.setItem('vnbx-store-data-v1', JSON.stringify({ ...current, [key]: value })); } catch {}
+      alert(`${label} guardados en el servidor.`);
+    } catch (error) {
+      alert(`No se pudieron guardar ${label.toLowerCase()}: ${error.message || 'error desconocido'}`);
+    } finally {
+      button.disabled = false;
+      button.textContent = originalText;
+    }
+  }
+  function wireSectionSaves() {
+    const general = document.querySelector('#saveAll');
+    if (general) general.style.display = 'none';
+    [['#productsTab', 'saveProducts', 'Guardar productos'], ['#categoriesTab', 'saveCategories', 'Guardar categorías'], ['#settingsTab', 'saveSettings', 'Guardar configuración']].forEach(([sectionSelector, id, text]) => {
+      const section = document.querySelector(sectionSelector);
+      if (!section || document.getElementById(id)) return;
+      const button = document.createElement('button');
+      button.id = id;
+      button.type = 'button';
+      button.className = 'primary-btn';
+      button.textContent = text;
+      section.querySelector('.section-toolbar')?.append(button);
+    });
+    [['#saveProducts', 'products', 'Productos'], ['#saveCategories', 'categories', 'Categorías']].forEach(([selector, key, label]) => {
+      const button = document.querySelector(selector);
+      if (!button || button.dataset.sectionSave) return;
+      button.dataset.sectionSave = '1';
+      button.addEventListener('click', () => saveCollection(button, key, label));
+    });
+  }
+  function enhance() { addProductField('wholesaleMinUnits', 'Promo 1: unidades mínimas'); addProductField('wholesalePrice', 'Promo 1: precio unitario'); addProductField('tier2MinUnits', 'Promo 2: unidades mínimas'); addProductField('tier2Price', 'Promo 2: precio unitario'); addProductField('tier3MinUnits', 'Promo 3: unidades mínimas'); addProductField('tier3Price', 'Promo 3: precio unitario'); addAdvancedSettings(); addGeneralStoreSettings(); fillWholesale(); wireProductSave(); wireSectionSaves(); wireSettingsSave(); }
   document.addEventListener('DOMContentLoaded', () => {
     enhance();
     document.addEventListener('click', event => { if (event.target.closest('#newProduct, [data-edit]')) setTimeout(enhance, 80); });

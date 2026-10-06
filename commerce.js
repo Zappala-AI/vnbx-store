@@ -3,6 +3,7 @@
   const storeKey = 'vnbx-store-data-v1';
   const money = value => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(value || 0);
   function readStore() { try { const data = JSON.parse(localStorage.getItem(storeKey) || '{}'); products = data.products || []; settings = data.settings || {}; if (!settings.whatsapp1Phone && !settings.whatsapp) settings = { ...settings, whatsapp: '2644118290', whatsapp1Phone: '2644118290' }; } catch { products = []; settings = { whatsapp: '2644118290', whatsapp1Phone: '2644118290' }; } }
+  async function syncPublicSettings() { try { const response = await fetch('/api/store?public=1', { cache: 'no-store' }); if (!response.ok) return; const remote = await response.json(); settings = { ...settings, ...(remote.settings || {}), ...(remote.content || {}) }; const cached = JSON.parse(localStorage.getItem(storeKey) || '{}'); localStorage.setItem(storeKey, JSON.stringify({ ...cached, ...remote, settings })); } catch {} }
   function contacts() {
     let list = settings.whatsappContacts;
     const fallback = [{ name: settings.whatsapp1Name || 'Ventas', description: settings.whatsapp1Description || '', phone: settings.whatsapp1Phone || settings.whatsapp || '' }, { name: settings.whatsapp2Name || 'Consultas', description: settings.whatsapp2Description || '', phone: settings.whatsapp2Phone || '' }];
@@ -86,7 +87,7 @@
     }
   }
   async function checkout(event) {
-    const { cart, units, total, discount } = cartTotals(); if (!cart.length) return; event.preventDefault(); event.stopImmediatePropagation(); readStore();
+    const { cart, units, total, discount } = cartTotals(); if (!cart.length) return; event.preventDefault(); event.stopImmediatePropagation(); await syncPublicSettings(); readStore(); ensureCheckoutOptions(); populateCheckoutOptions();
     const form = new FormData(event.target), list = contacts(), selected = list[Number(form.get('whatsappTarget'))] || list[0];
     if (!selected?.phone) { alert('Configurá el número de WhatsApp 1 desde Administración antes de recibir pedidos.'); return; }
     const orderNumber = await nextOrderNumber();
@@ -95,5 +96,5 @@
     const message = `Pedido Nº ${orderNumber}\nHola VNBX STORE, quiero realizar este pedido:\n\n${lines}\n\nTotal: ${money(total)}\nDescuentos: ${discount ? money(discount) : money(0)}\n${free ? 'Envío: GRATIS' : 'Envío: A coordinar'}\nMétodo de pago: ${form.get('paymentMethod')}\nWhatsApp destino: ${selected.name}${selected.description ? ` — ${selected.description}` : ''}\n\nCliente: ${form.get('name')}\nTeléfono: ${form.get('phone')}\nEntrega: ${form.get('delivery')}\nDirección/localidad: ${form.get('address') || 'A coordinar'}\nObservaciones: ${form.get('notes') || 'Sin observaciones'}`;
     window.open(`https://wa.me/${selected.phone}?text=${encodeURIComponent(message)}`, '_blank', 'noopener');
   }
-  document.addEventListener('DOMContentLoaded', () => { readStore(); ensureCheckoutOptions(); document.querySelector('#checkoutButton')?.addEventListener('click', () => { readStore(); ensureCheckoutOptions(); populateCheckoutOptions(); }); let scheduled = false; const observer = new MutationObserver(() => { if (scheduled) return; scheduled = true; requestAnimationFrame(() => { scheduled = false; syncShippingNote(); }); }); const cartPanel = document.querySelector('#cartPanel'); if (cartPanel) observer.observe(cartPanel, { childList: true, subtree: true }); document.querySelector('#checkoutForm')?.addEventListener('submit', checkout, true); });
+  document.addEventListener('DOMContentLoaded', () => { readStore(); syncPublicSettings().then(() => { readStore(); ensureCheckoutOptions(); populateCheckoutOptions(); }); ensureCheckoutOptions(); document.querySelector('#checkoutButton')?.addEventListener('click', () => { readStore(); ensureCheckoutOptions(); populateCheckoutOptions(); syncPublicSettings().then(() => { readStore(); populateCheckoutOptions(); }); }); let scheduled = false; const observer = new MutationObserver(() => { if (scheduled) return; scheduled = true; requestAnimationFrame(() => { scheduled = false; syncShippingNote(); }); }); const cartPanel = document.querySelector('#cartPanel'); if (cartPanel) observer.observe(cartPanel, { childList: true, subtree: true }); document.querySelector('#checkoutForm')?.addEventListener('submit', checkout, true); });
 })();

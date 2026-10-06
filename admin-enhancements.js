@@ -59,7 +59,50 @@
       setTimeout(() => { clearInterval(watcher); restore(); }, 60000);
     });
   }
-  function enhance() { addProductField('wholesaleMinUnits', 'Promo 1: unidades mínimas'); addProductField('wholesalePrice', 'Promo 1: precio unitario'); addProductField('tier2MinUnits', 'Promo 2: unidades mínimas'); addProductField('tier2Price', 'Promo 2: precio unitario'); addProductField('tier3MinUnits', 'Promo 3: unidades mínimas'); addProductField('tier3Price', 'Promo 3: precio unitario'); addAdvancedSettings(); addGeneralStoreSettings(); fillWholesale(); wireProductSave(); }
+  function wireSettingsSave() {
+    const original = document.querySelector('#saveAll');
+    if (!original || original.dataset.directSettingsSave) return;
+    const button = original.cloneNode(true);
+    button.dataset.directSettingsSave = '1';
+    original.replaceWith(button);
+    button.addEventListener('click', async () => {
+      if (button.disabled) return;
+      const form = settingsForm();
+      if (!form) return;
+      button.disabled = true;
+      button.textContent = 'Guardando…';
+      try {
+        const response = await fetch('/api/store?private=1', { credentials: 'same-origin' });
+        if (!response.ok) throw new Error(`No se pudo leer la tienda (error ${response.status})`);
+        const current = await response.json();
+        const settings = { ...(current.settings || {}) };
+        const seen = new Set();
+        for (const [key, value] of new FormData(form).entries()) {
+          if (seen.has(key)) continue;
+          seen.add(key);
+          settings[key] = value;
+        }
+        if (form.elements.heroImageEnabled) settings.heroImageEnabled = form.elements.heroImageEnabled.checked;
+        const save = await fetch('/api/store', {
+          method: 'PUT',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...current, settings })
+        });
+        let result = {};
+        try { result = await save.json(); } catch {}
+        if (!save.ok) throw new Error(result.error || `No se pudo guardar (error ${save.status})`);
+        try { localStorage.setItem('vnbx-store-data-v1', JSON.stringify({ ...current, settings })); } catch {}
+        alert('Configuración guardada en el servidor.');
+      } catch (error) {
+        alert(`No se pudo guardar la configuración: ${error.message || 'error desconocido'}`);
+      } finally {
+        button.disabled = false;
+        button.textContent = 'Guardar cambios';
+      }
+    });
+  }
+  function enhance() { addProductField('wholesaleMinUnits', 'Promo 1: unidades mínimas'); addProductField('wholesalePrice', 'Promo 1: precio unitario'); addProductField('tier2MinUnits', 'Promo 2: unidades mínimas'); addProductField('tier2Price', 'Promo 2: precio unitario'); addProductField('tier3MinUnits', 'Promo 3: unidades mínimas'); addProductField('tier3Price', 'Promo 3: precio unitario'); addAdvancedSettings(); addGeneralStoreSettings(); fillWholesale(); wireProductSave(); wireSettingsSave(); }
   document.addEventListener('DOMContentLoaded', () => {
     enhance();
     document.addEventListener('click', event => { if (event.target.closest('#newProduct, [data-edit]')) setTimeout(enhance, 80); });

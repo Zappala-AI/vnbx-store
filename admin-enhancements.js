@@ -46,14 +46,12 @@
   function wireProductSave() {
     const button = document.querySelector('#productForm .primary-btn');
     if (!button || button.dataset.directSave) return;
-    button.type = 'button';
     button.dataset.directSave = '1';
-    button.addEventListener('click', () => {
+    const form = productForm();
+    form?.addEventListener('submit', () => {
       if (button.disabled) return;
       button.disabled = true;
       button.textContent = 'Guardando…';
-      const form = productForm();
-      if (form) form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
       const restore = () => { button.disabled = false; button.textContent = 'Guardar producto'; };
       const watcher = setInterval(() => { if (!document.querySelector('#productDialog[open]')) { clearInterval(watcher); restore(); } }, 500);
       setTimeout(() => { clearInterval(watcher); restore(); }, 60000);
